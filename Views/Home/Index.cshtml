@@ -1,0 +1,212 @@
+@{
+    ViewData["Title"] = "QR Studio";
+}
+
+<main class="app">
+
+    <!-- ── Sidebar ── -->
+    <section class="panel--left">
+
+        <div class="sidebar-header">
+            <header class="brand">
+                <div class="brand__icon">
+                    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                        <rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/>
+                        <rect x="18" y="2" width="12" height="12" rx="2.5" fill="currentColor"/>
+                        <rect x="2" y="18" width="12" height="12" rx="2.5" fill="currentColor"/>
+                        <rect x="18" y="18" width="5" height="5" rx="1" fill="currentColor"/>
+                        <rect x="25" y="18" width="5" height="5" rx="1" fill="currentColor"/>
+                        <rect x="18" y="25" width="5" height="5" rx="1" fill="currentColor"/>
+                        <rect x="25" y="25" width="5" height="5" rx="1" fill="currentColor"/>
+                        <rect x="5.5" y="5.5" width="5" height="5" rx=".75" fill="var(--surface)"/>
+                        <rect x="21.5" y="5.5" width="5" height="5" rx=".75" fill="var(--surface)"/>
+                        <rect x="5.5" y="21.5" width="5" height="5" rx=".75" fill="var(--surface)"/>
+                    </svg>
+                </div>
+                <span class="brand__name">QR<em>Studio</em></span>
+                <span class="brand__badge">Free</span>
+            </header>
+        </div>
+
+        <div class="sidebar-body">
+
+            <!-- URL block -->
+            <div class="url-block">
+                <p class="section-label">Content</p>
+                <div class="field-group">
+                    <label class="field-label" for="qr-content">URL or plain text</label>
+                    <div class="input-row">
+                        <input
+                            id="qr-content"
+                            type="text"
+                            class="input"
+                            placeholder="https://example.com"
+                            autocomplete="off"
+                            spellcheck="false" />
+                        <button class="btn btn--primary" id="generate-btn">
+                            <span class="btn__text">Generate</span>
+                            <span class="btn__spinner" hidden>
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"
+                                        stroke-dasharray="28" stroke-dashoffset="10" stroke-linecap="round"/>
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+                    <p class="field-error" id="content-error" hidden></p>
+                </div>
+            </div>
+
+            <!-- Customise block -->
+            <div class="customise-block">
+                <p class="section-label">Customise</p>
+
+                <!-- Colors -->
+                <div class="field-row">
+                    <div class="field-group field-group--half">
+                        <label class="field-label">Foreground</label>
+                        <div class="color-picker-wrap" tabindex="0">
+                            <input type="color" id="dark-color" class="color-input" value="#0d0d0d" />
+                            <span class="color-swatch" id="dark-swatch"></span>
+                            <span class="color-hex" id="dark-hex">#0d0d0d</span>
+                        </div>
+                    </div>
+                    <div class="field-group field-group--half">
+                        <label class="field-label">Background</label>
+                        <div class="color-picker-wrap" tabindex="0">
+                            <input type="color" id="light-color" class="color-input" value="#ffffff" />
+                            <span class="color-swatch" id="light-swatch"></span>
+                            <span class="color-hex" id="light-hex">#ffffff</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Size -->
+                <div class="field-group">
+                    <label class="field-label">
+                        Module size
+                        <span class="label-value" id="size-label">10 px</span>
+                    </label>
+                    <div class="range-wrap">
+                        <span style="font-size:.7rem;color:var(--text-subtle)">S</span>
+                        <input type="range" id="qr-size" class="range-input" min="5" max="20" value="10" />
+                        <span style="font-size:.7rem;color:var(--text-subtle)">L</span>
+                    </div>
+                </div>
+
+                <!-- Error correction -->
+                <div class="field-group">
+                    <label class="field-label" for="ecc-level">Error correction</label>
+                    <div class="select-wrap">
+                        <select id="ecc-level" class="select">
+                            <option value="L">Low — 7% recovery</option>
+                            <option value="M">Medium — 15% recovery</option>
+                            <option value="Q">Quartile — 25% recovery</option>
+                            <option value="H" selected>High — 30% recovery</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logo block -->
+            <div class="upload-block">
+                <p class="section-label">Logo / Watermark</p>
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-zone__inner" id="upload-inner">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span>Drop image or <strong>browse</strong></span>
+                        <span class="upload-hint">PNG · JPG · SVG &nbsp;·&nbsp; max 2 MB</span>
+                    </div>
+                    <img class="upload-preview" id="logo-preview" alt="Logo preview" hidden />
+                    <button class="upload-remove" id="remove-logo" hidden title="Remove">✕</button>
+                    <input type="file" id="logo-file" accept="image/*" class="upload-file-input" />
+                </div>
+
+                <div class="logo-size-row" id="logo-size-row">
+                    <label class="field-label" style="white-space:nowrap;margin:0">
+                        Logo size &nbsp;<span class="label-value" id="logo-size-label">22%</span>
+                    </label>
+                    <input type="range" id="logo-size" class="range-input" min="5" max="30" value="22" />
+                </div>
+            </div>
+
+        </div><!-- /sidebar-body -->
+    </section>
+
+    <!-- ── Output canvas ── -->
+    <section class="panel--right">
+        <div class="output-area" id="output-area">
+
+            <!-- Placeholder -->
+            <div class="output-placeholder" id="output-placeholder">
+                <div class="ph-card">
+                    <div class="ph-inner">
+                        <svg class="ph-qr-icon" width="80" height="80" viewBox="0 0 32 32" fill="none">
+                            <rect x="2" y="2" width="12" height="12" rx="2" fill="currentColor"/>
+                            <rect x="18" y="2" width="12" height="12" rx="2" fill="currentColor"/>
+                            <rect x="2" y="18" width="12" height="12" rx="2" fill="currentColor"/>
+                            <rect x="18" y="18" width="5" height="5" rx="1" fill="currentColor"/>
+                            <rect x="25" y="18" width="5" height="5" rx="1" fill="currentColor"/>
+                            <rect x="18" y="25" width="5" height="5" rx="1" fill="currentColor"/>
+                            <rect x="25" y="25" width="5" height="5" rx="1" fill="currentColor"/>
+                            <rect x="5" y="5" width="6" height="6" rx="1" fill="white"/>
+                            <rect x="21" y="5" width="6" height="6" rx="1" fill="white"/>
+                            <rect x="5" y="21" width="6" height="6" rx="1" fill="white"/>
+                        </svg>
+                        <span class="ph-label">Enter a URL and hit Generate</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="output-result" id="output-result" hidden>
+                <div class="qr-card">
+                    <div class="qr-card__image-wrap">
+                        <img id="qr-image" alt="Generated QR code" />
+                    </div>
+                    <div class="qr-card__meta">
+                        <span class="qr-card__url" id="qr-meta-url"></span>
+                        <span class="qr-card__ecc" id="qr-meta-ecc"></span>
+                    </div>
+                </div>
+                <div class="output-actions">
+                    <button class="btn btn--outline" id="download-png">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download PNG
+                    </button>
+                    <button class="btn btn--ghost" id="copy-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div class="output-error" id="output-error" hidden>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p id="error-text"></p>
+            </div>
+
+        </div>
+    </section>
+
+</main>

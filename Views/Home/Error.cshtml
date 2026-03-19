@@ -1,0 +1,52 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error — QR Studio";
+}
+
+<main class="app app--error">
+    <div class="error-page">
+        <div class="error-page__icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </div>
+        <h1>Something went wrong</h1>
+        <p>An unexpected error occurred. Please try again or return to the home page.</p>
+        @if (Model.ShowRequestId)
+        {
+            <p class="error-page__id">Request ID: <code>@Model.RequestId</code></p>
+        }
+        <a href="/" class="btn btn--primary" style="margin-top:1.5rem;text-decoration:none">← Back to QR Studio</a>
+    </div>
+</main>
+
+<style>
+.app--error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg);
+}
+.error-page {
+    text-align: center;
+    max-width: 420px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .75rem;
+}
+.error-page__icon { color: var(--text-muted); margin-bottom: .5rem; }
+.error-page h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em; }
+.error-page p { color: var(--text-muted); font-size: .925rem; }
+.error-page__id { font-size: .8rem; color: var(--text-muted); }
+.error-page__id code {
+    font-family: var(--font-mono);
+    background: var(--border);
+    padding: .1rem .4rem;
+    border-radius: 4px;
+}
+</style>
