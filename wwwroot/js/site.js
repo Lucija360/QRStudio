@@ -5,7 +5,7 @@
     // DOM refs
     const contentInput   = document.getElementById('qr-content');
     const generateBtn    = document.getElementById('generate-btn');
-    const btnText        = generateBtn.querySelector('.btn__text');
+    const btnIcon        = generateBtn.querySelector('.btn__icon');
     const btnSpinner     = generateBtn.querySelector('.btn__spinner');
     const contentError   = document.getElementById('content-error');
 
@@ -32,13 +32,20 @@
     const copyBtn           = document.getElementById('copy-btn');
     const errorText         = document.getElementById('error-text');
 
+    // Share DOM refs
+    const shareBtn          = document.getElementById('share-btn');
+    const sharePanel        = document.getElementById('share-panel');
+    const sharePanelClose   = document.getElementById('share-panel-close');
+    const shareChannels     = sharePanel.querySelectorAll('.share-channel');
+
     let logoBase64 = null;
+    let shareInProgress = false;
 
     // Helpers 
 
     function setLoading(on) {
         generateBtn.disabled = on;
-        btnText.hidden        = on;
+        btnIcon.hidden        = on;
         btnSpinner.hidden     = !on;
     }
 
@@ -46,6 +53,8 @@
         outputPlaceholder.hidden = name !== 'placeholder';
         outputResult.hidden      = name !== 'result';
         outputError.hidden       = name !== 'error';
+        shareBtn.hidden          = name !== 'result';
+        if (name !== 'result') hideSharePanel();
     }
 
     function showError(msg) {
@@ -234,5 +243,152 @@
 
     generateBtn.addEventListener('click', generate);
     contentInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+
+    // Share logic
+
+    function dataUriToBlob(dataUri) {
+        const parts = dataUri.split(',');
+        const mime = parts[0].match(/:(.*?);/)[1];
+        const bytes = atob(parts[1]);
+        const arr = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+        return new Blob([arr], { type: mime });
+    }
+
+    function showSharePanel() {
+        sharePanel.hidden = false;
+    }
+
+    function hideSharePanel() {
+        sharePanel.hidden = true;
+    }
+
+    async function handleShare() {
+        if (shareInProgress) return;
+        shareInProgress = true;
+
+        try {
+            const dataUri = qrImage.src;
+            const pageUrl = window.location.href;
+            const title = 'QR Code — daenet QR Studio';
+
+            // Try native Web Share API with file
+            if (navigator.share) {
+                try {
+                    const blob = dataUriToBlob(dataUri);
+                    const file = new File([blob], 'qr-code.png', { type: 'image/png' });
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: title, text: pageUrl });
+                        return;
+                    }
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+
+                // Fallback: share URL only
+                try {
+                    await navigator.share({ title: title, text: pageUrl, url: pageUrl });
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+
+            // No native share — show fallback panel
+            showSharePanel();
+        } finally {
+            shareInProgress = false;
+        }
+    }
+
+    // Channel handlers
+    function getShareText() {
+        return 'Check out this QR code: ' + window.location.href;
+    }
+
+    const channelHandlers = {
+        email() {
+            const subject = encodeURIComponent('QR Code — daenet QR Studio');
+            const body = encodeURIComponent(getShareText());
+            window.open('mailto:?subject=' + subject + '&body=' + body, '_self');
+        },
+        whatsapp() {
+            const text = encodeURIComponent(getShareText());
+            window.open('https://wa.me/?text=' + text, '_blank', 'noopener');
+        },
+        telegram() {
+            const url = encodeURIComponent(window.location.href);
+            const text = encodeURIComponent('QR Code — daenet QR Studio');
+            window.open('https://t.me/share/url?url=' + url + '&text=' + text, '_blank', 'noopener');
+        },
+        instagram() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                const btn = sharePanel.querySelector('[data-channel="instagram"] span');
+                const orig = btn.textContent;
+                btn.textContent = 'Link copied!';
+                setTimeout(() => { btn.textContent = orig; }, 2000);
+            }).catch(() => {
+                alert('Could not copy link. Please copy manually: ' + window.location.href);
+            });
+        },
+        x() {
+            const text = encodeURIComponent('QR Code — daenet QR Studio');
+            const url = encodeURIComponent(window.location.href);
+            window.open('https://x.com/intent/tweet?text=' + text + '&url=' + url, '_blank', 'noopener');
+        },
+        facebook() {
+            const url = encodeURIComponent(window.location.href);
+            window.open('https://www.facebook.com/sharer/sharer.php?u=' + url, '_blank', 'noopener');
+        },
+        linkedin() {
+            const url = encodeURIComponent(window.location.href);
+            window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + url, '_blank', 'noopener');
+        },
+        threema() {
+            const text = encodeURIComponent(getShareText());
+            window.open('https://threema.id/compose?text=' + text, '_blank', 'noopener');
+        },
+        copy() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                const btn = sharePanel.querySelector('[data-channel="copy"] span');
+                const orig = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = orig; }, 2000);
+            }).catch(() => {
+                alert('Could not copy link. Please copy manually: ' + window.location.href);
+            });
+        }
+    };
+
+    // Wire up channel clicks
+    shareChannels.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const channel = btn.dataset.channel;
+            if (channelHandlers[channel]) channelHandlers[channel]();
+            if (channel !== 'instagram' && channel !== 'copy') hideSharePanel();
+        });
+    });
+
+    // Dismiss logic
+    sharePanelClose.addEventListener('click', hideSharePanel);
+
+    document.addEventListener('click', (e) => {
+        if (!sharePanel.hidden && !sharePanel.contains(e.target) && e.target !== shareBtn && !shareBtn.contains(e.target)) {
+            hideSharePanel();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !sharePanel.hidden) {
+            hideSharePanel();
+        }
+    });
+
+    // Wire up Share button
+    shareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleShare();
+    });
 
 })();
