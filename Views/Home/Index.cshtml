@@ -81,6 +81,29 @@
             <!-- Contact block -->
             <div class="contact-block" hidden>
                 <p class="section-label">Content</p>
+
+                <!-- Photo upload -->
+                <div class="photo-upload" id="photo-upload-zone">
+                    <div class="photo-upload__placeholder" id="photo-placeholder">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <span>Add photo</span>
+                    </div>
+                    <img class="photo-upload__preview" id="photo-preview" alt="Photo preview" hidden />
+                    <button class="photo-upload__remove" id="remove-photo" hidden title="Remove photo">&times;</button>
+                    <input type="file" id="photo-file" accept="image/png,image/jpeg,image/webp" class="upload-file-input" />
+                </div>
+                <div class="photo-upload__options" id="photo-options" hidden>
+                    <label class="photo-upload__checkbox-label">
+                        <input type="checkbox" id="include-photo" checked />
+                        Include photo in QR code
+                    </label>
+                </div>
+                <p class="field-error" id="photo-error" hidden></p>
+
                 <div class="field-row">
                     <div class="field-group field-group--half">
                         <label class="field-label" for="contact-first-name">First Name</label>
