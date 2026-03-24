@@ -5,7 +5,7 @@ namespace QRStudio.Models;
 public class QRGenerateRequest
 {
     [Required(ErrorMessage = "A URL or text is required.")]
-    [StringLength(2048, ErrorMessage = "Input must not exceed 2048 characters.")]
+    [StringLength(4096, ErrorMessage = "Input must not exceed 4096 characters.")]
     public string Content { get; set; } = string.Empty;
 
     /// <summary>Size of the QR code in pixels (module size).</summary>

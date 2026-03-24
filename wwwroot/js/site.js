@@ -42,6 +42,20 @@
     let shareInProgress = false;
     let currentMode = 'url';
 
+    // Photo upload state
+    let photoBase64 = null;
+    let includePhoto = true;
+
+    // Photo upload DOM refs
+    const photoUploadZone  = document.getElementById('photo-upload-zone');
+    const photoPlaceholder = document.getElementById('photo-placeholder');
+    const photoPreview     = document.getElementById('photo-preview');
+    const removePhotoBtn   = document.getElementById('remove-photo');
+    const photoFileInput   = document.getElementById('photo-file');
+    const photoError       = document.getElementById('photo-error');
+    const photoOptions     = document.getElementById('photo-options');
+    const includePhotoCheckbox = document.getElementById('include-photo');
+
     // Mode selector
     const modeUrl     = document.getElementById('mode-url');
     const modeContact = document.getElementById('mode-contact');
@@ -201,13 +215,122 @@
         if (file) handleLogoFile(file);
     });
 
+    // Photo upload (T009–T012, T013–T015)
+
+    function showPhotoError(msg) {
+        photoError.textContent = msg;
+        photoError.hidden = false;
+    }
+
+    function clearPhotoError() {
+        photoError.hidden = true;
+    }
+
+    async function handlePhotoFile(file) {
+        if (!file) return;
+        clearPhotoError();
+
+        const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            showPhotoError('Please select a valid image file (PNG, JPG, or WebP).');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            showPhotoError('Image must be smaller than 2 MB.');
+            return;
+        }
+
+        const dataUrl = await fileToBase64(file);
+        photoBase64 = dataUrl;
+
+        photoPreview.src    = dataUrl;
+        photoPreview.hidden = false;
+        photoPlaceholder.hidden = true;
+        removePhotoBtn.hidden   = false;
+        photoOptions.hidden     = false;
+    }
+
+    // Click-to-browse
+    photoUploadZone.addEventListener('click', (e) => {
+        if (e.target === removePhotoBtn || removePhotoBtn.contains(e.target)) return;
+        photoFileInput.click();
+    });
+    photoFileInput.addEventListener('change', () => {
+        if (photoFileInput.files[0]) handlePhotoFile(photoFileInput.files[0]);
+    });
+
+    // Drag-and-drop
+    photoUploadZone.addEventListener('dragover', e => {
+        e.preventDefault();
+        photoUploadZone.classList.add('drag-over');
+    });
+    photoUploadZone.addEventListener('dragleave', () => photoUploadZone.classList.remove('drag-over'));
+    photoUploadZone.addEventListener('drop', e => {
+        e.preventDefault();
+        photoUploadZone.classList.remove('drag-over');
+        const file = e.dataTransfer?.files[0];
+        if (file) handlePhotoFile(file);
+    });
+
+    // Remove photo
+    removePhotoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        photoBase64 = null;
+        photoPreview.hidden     = true;
+        photoPlaceholder.hidden = false;
+        removePhotoBtn.hidden   = true;
+        photoOptions.hidden     = true;
+        photoFileInput.value    = '';
+        clearPhotoError();
+    });
+
+    // Include-photo checkbox
+    includePhotoCheckbox.addEventListener('change', () => {
+        includePhoto = includePhotoCheckbox.checked;
+    });
+
     // vCard assembly & validation
 
     function escapeVCard(str) {
         return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
     }
 
-    function assembleVCard() {
+    // Compress an image source to a JPEG Base64 string at given dimensions and quality
+    function compressPhotoToBase64(imageSrc, size, quality) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+
+                // Cover/centre crop: draw the largest centred square from the source
+                const srcMin = Math.min(img.width, img.height);
+                const sx = (img.width - srcMin) / 2;
+                const sy = (img.height - srcMin) / 2;
+                ctx.drawImage(img, sx, sy, srcMin, srcMin, 0, 0, size, size);
+
+                canvas.toBlob(blob => {
+                    if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        // Strip the data:image/jpeg;base64, prefix
+                        const dataUrl = reader.result;
+                        const raw = dataUrl.substring(dataUrl.indexOf(',') + 1);
+                        resolve(raw);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => reject(new Error('Image load failed'));
+            img.src = imageSrc;
+        });
+    }
+
+    function assembleVCard(photoBase64Raw) {
         const fn = contactFirstName.value.trim();
         const ln = contactLastName.value.trim();
         const phone = contactPhone.value.trim();
@@ -228,6 +351,7 @@
         if (org)     lines.push('ORG:' + escapeVCard(org));
         if (title)   lines.push('TITLE:' + escapeVCard(title));
         if (website) lines.push('URL:' + escapeVCard(website));
+        if (photoBase64Raw) lines.push('PHOTO;ENCODING=b;TYPE=JPEG:' + photoBase64Raw);
         lines.push('END:VCARD');
         return lines.join('\r\n');
     }
@@ -243,6 +367,25 @@
             return false;
         }
         return true;
+    }
+
+    // Progressive photo compression for QR capacity (T019)
+    async function tryCompressPhotoForQR(imageSrc, eccLevel) {
+        const sizes = [96, 64, 48];
+        const qualities = [0.7, 0.5, 0.3, 0.1];
+        const max = maxBytesForEcc[eccLevel] || maxBytesForEcc.H;
+
+        for (const size of sizes) {
+            for (const quality of qualities) {
+                const raw = await compressPhotoToBase64(imageSrc, size, quality);
+                const vcard = assembleVCard(raw);
+                const byteLen = new TextEncoder().encode(vcard).length;
+                if (byteLen <= max) {
+                    return { success: true, vcard };
+                }
+            }
+        }
+        return { success: false };
     }
 
     // Contact form validation
@@ -295,14 +438,26 @@
 
     async function generate() {
         contentError.hidden = true;
+        clearPhotoError();
 
         let content;
 
         if (currentMode === 'contact') {
             if (!validateContactForm()) return;
-            content = assembleVCard();
             const eccValue = eccSelect.value;
-            if (!validateVCardLength(content, eccValue)) return;
+
+            if (photoBase64 && includePhoto) {
+                // Progressive photo compression (T019)
+                const result = await tryCompressPhotoForQR(photoBase64, eccValue);
+                if (!result.success) {
+                    showPhotoError('Photo is too large to include at the current error correction level. Try unchecking \'Include photo\' or lowering the error correction level.');
+                    return;
+                }
+                content = result.vcard;
+            } else {
+                content = assembleVCard();
+                if (!validateVCardLength(content, eccValue)) return;
+            }
         } else {
             content = contentInput.value.trim();
             if (!content) {
