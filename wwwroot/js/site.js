@@ -40,11 +40,53 @@
 
     let logoBase64 = null;
     let shareInProgress = false;
+    let currentMode = 'url';
+
+    // Mode selector
+    const modeUrl     = document.getElementById('mode-url');
+    const modeContact = document.getElementById('mode-contact');
+    const modeOptions = document.querySelectorAll('.mode-selector__option');
+    const urlBlock    = document.querySelector('.url-block');
+    const contactBlock = document.querySelector('.contact-block');
+    const phLabel     = document.querySelector('.ph-label');
+
+    function switchMode(mode) {
+        currentMode = mode;
+        urlBlock.hidden     = mode !== 'url';
+        contactBlock.hidden = mode !== 'contact';
+        modeOptions.forEach(opt => {
+            opt.classList.toggle('mode-selector__option--active',
+                opt.getAttribute('for') === 'mode-' + mode);
+        });
+        phLabel.textContent = mode === 'contact'
+            ? 'Fill in contact details and generate'
+            : 'Enter a URL and generate';
+        showSection('placeholder');
+    }
+
+    modeUrl.addEventListener('change', () => switchMode('url'));
+    modeContact.addEventListener('change', () => switchMode('contact'));
+
+    // Contact form DOM refs
+    const contactFirstName = document.getElementById('contact-first-name');
+    const contactLastName  = document.getElementById('contact-last-name');
+    const contactPhone     = document.getElementById('contact-phone');
+    const contactEmail     = document.getElementById('contact-email');
+    const contactOrg       = document.getElementById('contact-org');
+    const contactTitle     = document.getElementById('contact-title');
+    const contactWebsite   = document.getElementById('contact-website');
+    const generateContactBtn = document.getElementById('generate-contact-btn');
+    const firstNameError   = document.getElementById('first-name-error');
+    const lastNameError    = document.getElementById('last-name-error');
+    const phoneError       = document.getElementById('phone-error');
+    const emailError       = document.getElementById('email-error');
+    const vcardLengthError = document.getElementById('vcard-length-error');
 
     // Helpers 
 
     function setLoading(on) {
         generateBtn.disabled = on;
+        generateContactBtn.disabled = on;
         btnIcon.hidden        = on;
         btnSpinner.hidden     = !on;
     }
@@ -159,17 +201,116 @@
         if (file) handleLogoFile(file);
     });
 
+    // vCard assembly & validation
+
+    function escapeVCard(str) {
+        return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    }
+
+    function assembleVCard() {
+        const fn = contactFirstName.value.trim();
+        const ln = contactLastName.value.trim();
+        const phone = contactPhone.value.trim();
+        const email = contactEmail.value.trim();
+        const org = contactOrg.value.trim();
+        const title = contactTitle.value.trim();
+        const website = contactWebsite.value.trim();
+
+        const displayName = [fn, ln].filter(Boolean).join(' ');
+        const lines = [
+            'BEGIN:VCARD',
+            'VERSION:3.0',
+            'N:' + escapeVCard(ln) + ';' + escapeVCard(fn) + ';;;',
+            'FN:' + escapeVCard(displayName),
+        ];
+        if (phone)   lines.push('TEL;TYPE=CELL:' + escapeVCard(phone));
+        if (email)   lines.push('EMAIL:' + escapeVCard(email));
+        if (org)     lines.push('ORG:' + escapeVCard(org));
+        if (title)   lines.push('TITLE:' + escapeVCard(title));
+        if (website) lines.push('URL:' + escapeVCard(website));
+        lines.push('END:VCARD');
+        return lines.join('\r\n');
+    }
+
+    const maxBytesForEcc = { L: 2953, M: 2331, Q: 1663, H: 1273 };
+
+    function validateVCardLength(vcardString, eccLevel) {
+        const byteLen = new TextEncoder().encode(vcardString).length;
+        const max = maxBytesForEcc[eccLevel] || maxBytesForEcc.H;
+        if (byteLen > max) {
+            vcardLengthError.textContent = 'Contact data is too long for the selected error correction level. Try removing some fields or lowering the error correction level.';
+            vcardLengthError.hidden = false;
+            return false;
+        }
+        return true;
+    }
+
+    // Contact form validation
+
+    function validateContactForm() {
+        // Clear all field errors
+        firstNameError.hidden = true;
+        lastNameError.hidden = true;
+        phoneError.hidden = true;
+        emailError.hidden = true;
+        vcardLengthError.hidden = true;
+
+        contactFirstName.classList.remove('input--error');
+        contactLastName.classList.remove('input--error');
+        contactPhone.classList.remove('input--error');
+        contactEmail.classList.remove('input--error');
+
+        let valid = true;
+        const fn = contactFirstName.value.trim();
+        const ln = contactLastName.value.trim();
+
+        if (!fn && !ln) {
+            firstNameError.textContent = 'Please enter a first name or last name.';
+            firstNameError.hidden = false;
+            contactFirstName.classList.add('input--error');
+            contactLastName.classList.add('input--error');
+            valid = false;
+        }
+
+        const phone = contactPhone.value.trim();
+        if (phone && !/^[+\d\s\-()]+$/.test(phone)) {
+            phoneError.textContent = 'Phone may only contain digits, spaces, dashes, and +.';
+            phoneError.hidden = false;
+            contactPhone.classList.add('input--error');
+            valid = false;
+        }
+
+        const email = contactEmail.value.trim();
+        if (email && !email.includes('@')) {
+            emailError.textContent = 'Please enter a valid email address.';
+            emailError.hidden = false;
+            contactEmail.classList.add('input--error');
+            valid = false;
+        }
+
+        return valid;
+    }
+
     // Generate 
 
     async function generate() {
         contentError.hidden = true;
 
-        const content = contentInput.value.trim();
-        if (!content) {
-            contentError.textContent = 'Please enter a URL or text.';
-            contentError.hidden = false;
-            contentInput.focus();
-            return;
+        let content;
+
+        if (currentMode === 'contact') {
+            if (!validateContactForm()) return;
+            content = assembleVCard();
+            const eccValue = eccSelect.value;
+            if (!validateVCardLength(content, eccValue)) return;
+        } else {
+            content = contentInput.value.trim();
+            if (!content) {
+                contentError.textContent = 'Please enter a URL or text.';
+                contentError.hidden = false;
+                contentInput.focus();
+                return;
+            }
         }
 
         setLoading(true);
@@ -208,7 +349,13 @@
             qrImage.src = src;
 
             // Update meta strip
-            qrMetaUrl.textContent = truncateUrl(content);
+            if (currentMode === 'contact') {
+                const fn = contactFirstName.value.trim();
+                const ln = contactLastName.value.trim();
+                qrMetaUrl.textContent = [fn, ln].filter(Boolean).join(' ');
+            } else {
+                qrMetaUrl.textContent = truncateUrl(content);
+            }
             const eccMap = { L: 'ECC L', M: 'ECC M', Q: 'ECC Q', H: 'ECC H' };
             qrMetaEcc.textContent = eccMap[eccValue] ?? 'ECC H';
 
@@ -242,6 +389,7 @@
     }
 
     generateBtn.addEventListener('click', generate);
+    generateContactBtn.addEventListener('click', generate);
     contentInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
 
     // Share logic

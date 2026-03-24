@@ -30,6 +30,14 @@
 
         <div class="sidebar-body">
 
+            <!-- Mode selector -->
+            <div class="mode-selector">
+                <input type="radio" id="mode-url" name="qr-mode" value="url" checked hidden />
+                <label for="mode-url" class="mode-selector__option mode-selector__option--active">URL</label>
+                <input type="radio" id="mode-contact" name="qr-mode" value="contact" hidden />
+                <label for="mode-contact" class="mode-selector__option">Contact</label>
+            </div>
+
             <!-- URL block -->
             <div class="url-block">
                 <p class="section-label">Content</p>
@@ -68,6 +76,47 @@
                     </div>
                     <p class="field-error" id="content-error" hidden></p>
                 </div>
+            </div>
+
+            <!-- Contact block -->
+            <div class="contact-block" hidden>
+                <p class="section-label">Content</p>
+                <div class="field-row">
+                    <div class="field-group field-group--half">
+                        <label class="field-label" for="contact-first-name">First Name</label>
+                        <input id="contact-first-name" type="text" class="input" placeholder="Jane" autocomplete="off" />
+                        <p class="field-error" id="first-name-error" hidden></p>
+                    </div>
+                    <div class="field-group field-group--half">
+                        <label class="field-label" for="contact-last-name">Last Name</label>
+                        <input id="contact-last-name" type="text" class="input" placeholder="Doe" autocomplete="off" />
+                        <p class="field-error" id="last-name-error" hidden></p>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="contact-phone">Phone</label>
+                    <input id="contact-phone" type="tel" class="input" placeholder="+49 123 456 7890" autocomplete="off" />
+                    <p class="field-error" id="phone-error" hidden></p>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="contact-email">Email</label>
+                    <input id="contact-email" type="email" class="input" placeholder="jane@example.com" autocomplete="off" />
+                    <p class="field-error" id="email-error" hidden></p>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="contact-org">Organisation</label>
+                    <input id="contact-org" type="text" class="input" placeholder="Acme Corp" autocomplete="off" />
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="contact-title">Job Title</label>
+                    <input id="contact-title" type="text" class="input" placeholder="Software Engineer" autocomplete="off" />
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="contact-website">Website</label>
+                    <input id="contact-website" type="url" class="input" placeholder="https://example.com" autocomplete="off" />
+                </div>
+                <button class="btn btn--primary btn--full-width" id="generate-contact-btn" aria-label="Generate contact QR code">Generate</button>
+                <p class="field-error" id="vcard-length-error" hidden></p>
             </div>
 
             <!-- Customise block -->
