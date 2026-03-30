@@ -140,6 +140,83 @@
                 </div>
                 <button class="btn btn--primary btn--full-width" id="generate-contact-btn" aria-label="Generate contact QR code">Generate</button>
                 <p class="field-error" id="vcard-length-error" hidden></p>
+
+                <!-- Social Media section -->
+                <div class="social-media-block">
+                    <p class="section-label">Social Media</p>
+                    <div class="social-fields">
+                        <div class="social-field" data-platform="LinkedIn">
+                            <label class="social-checkbox-label">
+                                <input type="checkbox" class="social-checkbox" data-platform="LinkedIn" />
+                                <span class="social-platform-name">LinkedIn</span>
+                            </label>
+                            <input type="url" class="input social-url" data-platform="LinkedIn" placeholder="https://linkedin.com/in/yourname" autocomplete="off" />
+                            <p class="field-error social-url-error" hidden></p>
+                        </div>
+                        <div class="social-field" data-platform="Instagram">
+                            <label class="social-checkbox-label">
+                                <input type="checkbox" class="social-checkbox" data-platform="Instagram" />
+                                <span class="social-platform-name">Instagram</span>
+                            </label>
+                            <input type="url" class="input social-url" data-platform="Instagram" placeholder="https://instagram.com/yourname" autocomplete="off" />
+                            <p class="field-error social-url-error" hidden></p>
+                        </div>
+                        <div class="social-field" data-platform="Facebook">
+                            <label class="social-checkbox-label">
+                                <input type="checkbox" class="social-checkbox" data-platform="Facebook" />
+                                <span class="social-platform-name">Facebook</span>
+                            </label>
+                            <input type="url" class="input social-url" data-platform="Facebook" placeholder="https://facebook.com/yourname" autocomplete="off" />
+                            <p class="field-error social-url-error" hidden></p>
+                        </div>
+                        <div class="social-field" data-platform="X/Twitter">
+                            <label class="social-checkbox-label">
+                                <input type="checkbox" class="social-checkbox" data-platform="X/Twitter" />
+                                <span class="social-platform-name">X / Twitter</span>
+                            </label>
+                            <input type="url" class="input social-url" data-platform="X/Twitter" placeholder="https://x.com/yourname" autocomplete="off" />
+                            <p class="field-error social-url-error" hidden></p>
+                        </div>
+                        <div class="social-field" data-platform="YouTube">
+                            <label class="social-checkbox-label">
+                                <input type="checkbox" class="social-checkbox" data-platform="YouTube" />
+                                <span class="social-platform-name">YouTube</span>
+                            </label>
+                            <input type="url" class="input social-url" data-platform="YouTube" placeholder="https://youtube.com/@@yourchannel" autocomplete="off" />
+                            <p class="field-error social-url-error" hidden></p>
+                        </div>
+                        <div class="social-field" data-platform="GitHub">
+                            <label class="social-checkbox-label">
+                                <input type="checkbox" class="social-checkbox" data-platform="GitHub" />
+                                <span class="social-platform-name">GitHub</span>
+                            </label>
+                            <input type="url" class="input social-url" data-platform="GitHub" placeholder="https://github.com/yourname" autocomplete="off" />
+                            <p class="field-error social-url-error" hidden></p>
+                        </div>
+                        <div class="social-field" data-platform="TikTok">
+                            <label class="social-checkbox-label">
+                                <input type="checkbox" class="social-checkbox" data-platform="TikTok" />
+                                <span class="social-platform-name">TikTok</span>
+                            </label>
+                            <input type="url" class="input social-url" data-platform="TikTok" placeholder="https://tiktok.com/@@yourname" autocomplete="off" />
+                            <p class="field-error social-url-error" hidden></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Retention period selector -->
+                <div class="field-group">
+                    <label class="field-label" for="retention-period">Retention period</label>
+                    <div class="select-wrap">
+                        <select id="retention-period" class="select">
+                            <option value="1d">1 day</option>
+                            <option value="7d" selected>7 days</option>
+                            <option value="1m">1 month</option>
+                            <option value="1y">1 year</option>
+                            <option value="forever">Forever</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <!-- Customise block -->
@@ -250,7 +327,8 @@
 
             <!-- Result -->
             <div class="output-result" id="output-result" hidden>
-                <div class="qr-card">
+                <!-- Single QR result (URL mode) -->
+                <div class="qr-card" id="single-qr-card">
                     <div class="qr-card__image-wrap">
                         <img id="qr-image" alt="Generated QR code" />
                     </div>
@@ -258,6 +336,11 @@
                         <span class="qr-card__url" id="qr-meta-url"></span>
                         <span class="qr-card__ecc" id="qr-meta-ecc"></span>
                     </div>
+                </div>
+
+                <!-- Contact QR grid (Contact mode) -->
+                <div class="qr-grid" id="qr-grid" hidden>
+                    <!-- Populated dynamically by JS -->
                 </div>
                 <div class="output-actions">
                     <button class="btn btn--outline" id="download-png">
@@ -286,6 +369,71 @@
                         </svg>
                         Share
                     </button>
+                    <button class="btn btn--outline" id="download-txt-btn" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                        Download TXT
+                    </button>
+                    <button class="btn btn--outline" id="share-vcf-btn" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        Share as VCF
+                    </button>
+                    <button class="btn btn--outline" id="share-link-btn" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                        Share Link
+                    </button>
+                    <button class="btn btn--danger-outline" id="delete-blob-btn" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+
+                <!-- Save/Drop prompt (Contact mode) -->
+                <div class="save-prompt" id="save-prompt" hidden>
+                    <div class="save-prompt__header">Save your contact data?</div>
+                    <p class="save-prompt__desc">Enter an access code to save and share your contact data. Or drop to skip saving.</p>
+                    <div class="field-group">
+                        <label class="field-label" for="access-code-input">Access code</label>
+                        <input id="access-code-input" type="password" class="input" placeholder="Enter access code" autocomplete="off" minlength="4" maxlength="6" />
+                        <p class="field-error" id="access-code-error" hidden></p>
+                    </div>
+                    <div class="save-prompt__actions">
+                        <button class="btn btn--primary" id="save-blob-btn">Save</button>
+                        <button class="btn btn--ghost" id="drop-blob-btn">Drop</button>
+                    </div>
+                    <p class="save-prompt__status" id="save-status" hidden></p>
+                </div>
+
+                <!-- Upload/Restore (US3c) -->
+                <div class="upload-restore" id="upload-restore-section" hidden>
+                    <button class="btn btn--outline" id="upload-txt-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Upload TXT
+                    </button>
+                    <input type="file" id="upload-txt-file" accept=".txt,.json" class="upload-file-input" />
+                    <p class="field-error" id="upload-txt-error" hidden></p>
                 </div>
 
                 <!-- Share fallback panel -->

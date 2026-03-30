@@ -136,4 +136,4 @@ toolchain issues.
 - Compliance reviews SHOULD occur at every PR; a quarterly read-
   through is recommended to prune stale guidance.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-22 | **Last Amended**: 2026-03-22
+**Version**: 1.0.1 | **Ratified**: 2026-03-22 | **Last Amended**: 2026-03-26

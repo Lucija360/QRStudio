@@ -67,6 +67,125 @@ public sealed class QRCodeService : IQRCodeService
 
     #region Private Helepers
 
+    private async Task<string?> GenerateQRBase64(string content, ContactQRRequest request)
+    {
+        var qrRequest = new QRGenerateRequest
+        {
+            Content = content,
+            PixelsPerModule = request.PixelsPerModule,
+            DarkColor = request.DarkColor,
+            LightColor = request.LightColor,
+            ErrorCorrectionLevel = request.ErrorCorrectionLevel,
+            LogoBase64 = request.LogoBase64,
+            LogoSizeRatio = request.LogoSizeRatio
+        };
+
+        var result = await GenerateAsync(qrRequest);
+        return result.Success ? result.ImageBase64 : null;
+    }
+
+    public async Task<ContactQRResponse> GenerateContactAsync(ContactQRRequest request)
+    {
+        try
+        {
+            // Build vCard string
+            var vcard = BuildVCard(request);
+            var vcardImage = await GenerateQRBase64(vcard, request);
+
+            if (vcardImage == null)
+            {
+                return new ContactQRResponse
+                {
+                    Success = false,
+                    ErrorMessage = "Failed to generate vCard QR code."
+                };
+            }
+
+            // Generate social media QR codes
+            var socialResults = new List<SocialMediaQRResult>();
+            foreach (var entry in request.SocialMedia)
+            {
+                if (!entry.Enabled || string.IsNullOrWhiteSpace(entry.Url))
+                    continue;
+
+                var url = entry.Url.Trim();
+                if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    url = "https://" + url;
+                }
+
+                var image = await GenerateQRBase64(url, request);
+                if (image != null)
+                {
+                    socialResults.Add(new SocialMediaQRResult
+                    {
+                        Platform = entry.Platform,
+                        ImageBase64 = image,
+                        Url = url
+                    });
+                }
+            }
+
+            return new ContactQRResponse
+            {
+                Success = true,
+                VCardImageBase64 = vcardImage,
+                SocialMediaQRCodes = socialResults.ToArray()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Contact QR generation failed");
+            return new ContactQRResponse
+            {
+                Success = false,
+                ErrorMessage = "Failed to generate contact QR codes. Please check your input and try again."
+            };
+        }
+    }
+
+    private static string BuildVCard(ContactQRRequest request)
+    {
+        var lines = new List<string>
+        {
+            "BEGIN:VCARD",
+            "VERSION:3.0",
+            $"N:{EscapeVCard(request.LastName)};{EscapeVCard(request.FirstName)};;;",
+            $"FN:{EscapeVCard($"{request.FirstName} {request.LastName}".Trim())}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+            lines.Add($"TEL;TYPE=CELL:{EscapeVCard(request.Phone)}");
+        if (!string.IsNullOrWhiteSpace(request.Email))
+            lines.Add($"EMAIL:{EscapeVCard(request.Email)}");
+        if (!string.IsNullOrWhiteSpace(request.Organisation))
+            lines.Add($"ORG:{EscapeVCard(request.Organisation)}");
+        if (!string.IsNullOrWhiteSpace(request.JobTitle))
+            lines.Add($"TITLE:{EscapeVCard(request.JobTitle)}");
+        if (!string.IsNullOrWhiteSpace(request.Website))
+            lines.Add($"URL:{EscapeVCard(request.Website)}");
+        if (!string.IsNullOrWhiteSpace(request.PhotoBase64))
+        {
+            var photoData = request.PhotoBase64.Contains(',')
+                ? request.PhotoBase64.Split(',')[1]
+                : request.PhotoBase64;
+            lines.Add($"PHOTO;ENCODING=b;TYPE=JPEG:{photoData}");
+        }
+
+        lines.Add("END:VCARD");
+        return string.Join("\r\n", lines);
+    }
+
+    private static string EscapeVCard(string value)
+    {
+        return value
+            .Replace("\\", "\\\\")
+            .Replace(";", "\\;")
+            .Replace(",", "\\,")
+            .Replace("\n", "\\n");
+    }
+
     private static async Task CompositeLogoAsync(
         Image<Rgba32> qrImage,
         string logoBase64,

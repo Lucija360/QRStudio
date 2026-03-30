@@ -1,0 +1,679 @@
+@{
+    ViewData["Title"] = "View Contact";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>View Contact — daenet QR Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        .view-container {
+            max-width: 580px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .view-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .view-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .view-header p {
+            color: var(--textMuted);
+            margin-top: 0.25rem;
+        }
+        .code-entry {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .code-entry input {
+            width: 100%;
+            max-width: 320px;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .code-entry input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primaryGhost);
+        }
+        .code-entry .btn {
+            width: 100%;
+            max-width: 320px;
+        }
+        .view-error {
+            color: var(--error);
+            text-align: center;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+        .view-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .view-card h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 0.25rem;
+        }
+        .view-card .view-org {
+            color: var(--textMuted);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .view-field {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            padding: 0.375rem 0;
+            font-size: 0.9rem;
+        }
+        .view-field-label {
+            color: var(--textMuted);
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+        .view-field a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .view-field a:hover {
+            text-decoration: underline;
+        }
+        .view-social-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .view-social-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: 0.8rem;
+            color: var(--text);
+            text-decoration: none;
+            transition: background 150ms, border-color 150ms;
+        }
+        .view-social-link:hover {
+            background: var(--hover);
+            border-color: var(--primary);
+        }
+        .view-qr-section {
+            margin-top: 1.5rem;
+        }
+        .view-qr-section h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+        }
+        .change-code-section {
+            margin-top: 2rem;
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+        }
+        .change-code-section summary {
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--textMuted);
+        }
+        .change-code-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            max-width: 320px;
+        }
+        .change-code-form input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .change-code-form input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primaryGhost);
+            outline: none;
+        }
+        .view-expired {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+        .view-expired h2 {
+            font-size: 1.25rem;
+            color: var(--text);
+        }
+        .view-expired p {
+            color: var(--textMuted);
+        }
+    </style>
+</head>
+<body>
+    <div class="view-container">
+        <div class="view-header">
+            <h1>daenet QR Studio</h1>
+            <p id="view-header-desc">Loading contact...</p>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="view-loading" style="text-align:center;padding:2rem;color:var(--textMuted)">Loading...</div>
+
+        <!-- Contact card (hidden until data loaded) -->
+        <div id="view-contact-card" class="view-card" hidden>
+            <h2 id="view-name"></h2>
+            <div id="view-org" class="view-org"></div>
+            <div id="view-fields"></div>
+            <div id="view-social" class="view-social-links"></div>
+        </div>
+
+        <!-- QR codes (hidden until data loaded) -->
+        <div id="view-qr-section" class="view-qr-section" hidden>
+            <h3>QR Codes</h3>
+            <div id="view-qr-grid" class="qr-grid"></div>
+        </div>
+
+        <!-- Read-only action buttons (visible after data load, before verify) -->
+        <div id="view-readonly-actions" style="margin-top:1rem;text-align:center;display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap" hidden>
+            <button type="button" id="view-share-vcf-btn" class="btn" style="display:inline-flex">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.35rem"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Share as VCF
+            </button>
+            <button type="button" id="view-share-link-btn" class="btn" style="display:inline-flex">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.35rem"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Share Link
+            </button>
+        </div>
+
+        <!-- Code entry (shown after read-only load for optional full-mode unlock) -->
+        <div id="code-entry-section" class="code-entry" hidden>
+            <p style="font-size:0.85rem;color:var(--textMuted);margin-bottom:0.5rem">Enter access code for full access</p>
+            <input type="password" id="view-access-code" placeholder="Access code" maxlength="6" autocomplete="off" />
+            <button type="button" id="view-verify-btn" class="btn">
+                <span class="btn__icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                Verify
+            </button>
+            <p id="view-error" class="view-error" hidden></p>
+        </div>
+
+        <!-- Full-mode action buttons (visible only after verify) -->
+        <div id="view-full-actions" style="margin-top:1rem;text-align:center;display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap" hidden>
+            <button type="button" id="view-download-txt" class="btn" style="display:inline-flex">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.35rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download TXT
+            </button>
+            <button type="button" id="view-delete-btn" class="btn" style="display:inline-flex;border-color:var(--error,#ef4444);color:var(--error,#ef4444)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.35rem"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Delete
+            </button>
+        </div>
+
+        <!-- Change code (hidden until verified) -->
+        <div id="view-change-code" class="change-code-section" hidden>
+            <details>
+                <summary>Change access code</summary>
+                <div class="change-code-form">
+                    <input type="password" id="change-current-code" placeholder="Current code" maxlength="6" />
+                    <input type="password" id="change-new-code" placeholder="New code" maxlength="6" />
+                    <button type="button" id="change-code-btn" class="btn">Change Code</button>
+                    <p id="change-code-status" class="view-error" hidden></p>
+                </div>
+            </details>
+        </div>
+
+        <!-- Expired/Not found -->
+        <div id="view-expired" class="view-expired" hidden>
+            <h2>Contact Not Found</h2>
+            <p>This contact link may have expired or been deleted.</p>
+        </div>
+    </div>
+
+    <script>
+    'use strict';
+    (function () {
+        var slug = '@Html.Raw(ViewBag.Slug)';
+
+        // DOM refs
+        var headerDesc        = document.getElementById('view-header-desc');
+        var viewLoading       = document.getElementById('view-loading');
+        var contactCard       = document.getElementById('view-contact-card');
+        var viewName          = document.getElementById('view-name');
+        var viewOrg           = document.getElementById('view-org');
+        var viewFields        = document.getElementById('view-fields');
+        var viewSocial        = document.getElementById('view-social');
+        var viewQRSection     = document.getElementById('view-qr-section');
+        var viewQRGrid        = document.getElementById('view-qr-grid');
+        var readonlyActions   = document.getElementById('view-readonly-actions');
+        var codeEntrySection  = document.getElementById('code-entry-section');
+        var accessCodeInput   = document.getElementById('view-access-code');
+        var verifyBtn         = document.getElementById('view-verify-btn');
+        var viewError         = document.getElementById('view-error');
+        var fullActions       = document.getElementById('view-full-actions');
+        var viewDownloadTxt   = document.getElementById('view-download-txt');
+        var viewDeleteBtn     = document.getElementById('view-delete-btn');
+        var changeCodeSection = document.getElementById('view-change-code');
+        var changeCurrentCode = document.getElementById('change-current-code');
+        var changeNewCode     = document.getElementById('change-new-code');
+        var changeCodeBtn     = document.getElementById('change-code-btn');
+        var changeCodeStatus  = document.getElementById('change-code-status');
+        var viewShareVcfBtn   = document.getElementById('view-share-vcf-btn');
+        var viewShareLinkBtn  = document.getElementById('view-share-link-btn');
+        var viewExpired       = document.getElementById('view-expired');
+
+        // State
+        var contactData = null;
+        var deleteToken = null;
+
+        function escapeHtml(str) {
+            var d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        // ── Load read-only data on page init ──
+        loadReadOnlyData();
+
+        async function loadReadOnlyData() {
+            try {
+                var resp = await fetch('/api/blob/read/' + encodeURIComponent(slug));
+
+                if (!resp.ok) {
+                    viewLoading.hidden = true;
+                    viewExpired.hidden = false;
+                    headerDesc.textContent = '';
+                    return;
+                }
+
+                var data = await resp.json();
+                if (!data.success) {
+                    viewLoading.hidden = true;
+                    viewExpired.hidden = false;
+                    headerDesc.textContent = '';
+                    return;
+                }
+
+                contactData = data.contactData;
+                viewLoading.hidden = true;
+                headerDesc.textContent = 'Contact details';
+
+                showContact(contactData);
+                await regenerateQR(contactData);
+
+                // Show read-only buttons + code entry
+                readonlyActions.hidden = false;
+                codeEntrySection.hidden = false;
+            } catch (err) {
+                viewLoading.hidden = true;
+                viewExpired.hidden = false;
+                headerDesc.textContent = '';
+            }
+        }
+
+        // ── Render contact card ──
+        function showContact(contact) {
+            var name = [contact.firstName, contact.lastName].filter(Boolean).join(' ');
+            viewName.textContent = name;
+
+            var orgParts = [contact.jobTitle, contact.organisation].filter(Boolean);
+            viewOrg.textContent = orgParts.join(' at ');
+            viewOrg.hidden = orgParts.length === 0;
+
+            viewFields.innerHTML = '';
+            var fields = [
+                { label: 'Phone', value: contact.phone, href: contact.phone ? 'tel:' + contact.phone : null },
+                { label: 'Email', value: contact.email, href: contact.email ? 'mailto:' + contact.email : null },
+                { label: 'Website', value: contact.website, href: contact.website }
+            ];
+            fields.forEach(function(f) {
+                if (!f.value) return;
+                var div = document.createElement('div');
+                div.className = 'view-field';
+                div.innerHTML = '<span class="view-field-label">' + escapeHtml(f.label) + '</span>' +
+                    (f.href
+                        ? '<a href="' + escapeHtml(f.href) + '" target="_blank" rel="noopener">' + escapeHtml(f.value) + '</a>'
+                        : '<span>' + escapeHtml(f.value) + '</span>');
+                viewFields.appendChild(div);
+            });
+
+            viewSocial.innerHTML = '';
+            if (contact.socialMedia) {
+                contact.socialMedia.forEach(function(sm) {
+                    if (!sm.enabled || !sm.url) return;
+                    var a = document.createElement('a');
+                    a.className = 'view-social-link';
+                    a.href = sm.url;
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    a.textContent = sm.platform;
+                    viewSocial.appendChild(a);
+                });
+            }
+
+            contactCard.hidden = false;
+        }
+
+        // ── Generate QR codes ──
+        async function regenerateQR(contact) {
+            var req = {
+                firstName:            contact.firstName,
+                lastName:             contact.lastName,
+                phone:                contact.phone,
+                email:                contact.email,
+                organisation:         contact.organisation,
+                jobTitle:             contact.jobTitle,
+                website:              contact.website,
+                photoBase64:          contact.photoBase64,
+                socialMedia:          contact.socialMedia || [],
+                pixelsPerModule:      contact.pixelsPerModule || 10,
+                darkColor:            contact.darkColor || '#0d0d0d',
+                lightColor:           contact.lightColor || '#ffffff',
+                errorCorrectionLevel: contact.errorCorrectionLevel || 'H',
+                logoBase64:           contact.logoBase64,
+                logoSizeRatio:        contact.logoSizeRatio || 0.22
+            };
+
+            try {
+                var resp = await fetch('/api/qr/generate-contact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(req)
+                });
+
+                var data = await resp.json();
+                if (!data.success) return;
+
+                viewQRGrid.innerHTML = '';
+
+                if (data.vCardImageBase64) {
+                    var card = document.createElement('div');
+                    card.className = 'qr-grid-card qr-grid-card--vcard';
+                    card.innerHTML = '<div class="qr-grid-card__label">vCard</div>' +
+                        '<img src="data:image/png;base64,' + data.vCardImageBase64 + '" alt="vCard QR code" />';
+                    viewQRGrid.appendChild(card);
+                }
+
+                if (data.socialMediaQRCodes) {
+                    data.socialMediaQRCodes.forEach(function(sm) {
+                        var card = document.createElement('div');
+                        card.className = 'qr-grid-card';
+                        card.innerHTML = '<div class="qr-grid-card__label">' + escapeHtml(sm.platform) + '</div>' +
+                            '<img src="data:image/png;base64,' + sm.imageBase64 + '" alt="' + escapeHtml(sm.platform) + ' QR code" />';
+                        viewQRGrid.appendChild(card);
+                    });
+                }
+
+                viewQRSection.hidden = false;
+            } catch (err) {
+                // Silently skip QR generation on error
+            }
+        }
+
+        // ── Verify access code (full-mode unlock) ──
+        accessCodeInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') verify();
+        });
+        verifyBtn.addEventListener('click', verify);
+
+        async function verify() {
+            var code = accessCodeInput.value;
+            if (!code) {
+                viewError.textContent = 'Please enter the access code.';
+                viewError.hidden = false;
+                return;
+            }
+            viewError.hidden = true;
+            verifyBtn.disabled = true;
+
+            try {
+                var resp = await fetch('/api/blob/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: slug, accessCode: code })
+                });
+
+                if (resp.status === 429) {
+                    var rateLimitData = await resp.json();
+                    viewError.textContent = rateLimitData.errorMessage || 'Too many attempts. Please wait and try again.';
+                    viewError.hidden = false;
+                    return;
+                }
+
+                if (resp.status === 404) {
+                    codeEntrySection.hidden = true;
+                    readonlyActions.hidden = true;
+                    contactCard.hidden = true;
+                    viewQRSection.hidden = true;
+                    viewExpired.hidden = false;
+                    headerDesc.textContent = '';
+                    return;
+                }
+
+                var data = await resp.json();
+
+                if (!data.success) {
+                    viewError.textContent = data.errorMessage || 'Verification failed.';
+                    viewError.hidden = false;
+                    return;
+                }
+
+                // Full mode unlock
+                contactData = data.contactData;
+                deleteToken = data.deleteToken;
+
+                // Update contact display with verified data
+                showContact(data.contactData);
+                await regenerateQR(data.contactData);
+
+                // Hide code entry, show full-mode UI
+                codeEntrySection.hidden = true;
+                fullActions.hidden = false;
+                changeCodeSection.hidden = false;
+                headerDesc.textContent = 'Full access';
+
+            } catch (err) {
+                viewError.textContent = 'Network error — please try again.';
+                viewError.hidden = false;
+            } finally {
+                verifyBtn.disabled = false;
+            }
+        }
+
+        // ── Share as VCF (T047) ──
+        viewShareVcfBtn.addEventListener('click', async function() {
+            if (!contactData) return;
+            var c = contactData;
+            var lines = ['BEGIN:VCARD', 'VERSION:3.0'];
+            lines.push('FN:' + [c.firstName, c.lastName].filter(Boolean).join(' '));
+            lines.push('N:' + (c.lastName || '') + ';' + (c.firstName || '') + ';;;');
+            if (c.phone) lines.push('TEL;TYPE=VOICE:' + c.phone);
+            if (c.email) lines.push('EMAIL:' + c.email);
+            if (c.organisation) lines.push('ORG:' + c.organisation);
+            if (c.jobTitle) lines.push('TITLE:' + c.jobTitle);
+            if (c.website) lines.push('URL:' + c.website);
+            lines.push('END:VCARD');
+
+            var vcfBlob = new Blob([lines.join('\r\n')], { type: 'text/vcard' });
+            var fileName = [c.firstName, c.lastName].filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'contact';
+            var vcfFile = new File([vcfBlob], fileName + '.vcf', { type: 'text/vcard' });
+
+            if (navigator.canShare && navigator.canShare({ files: [vcfFile] })) {
+                try {
+                    await navigator.share({ files: [vcfFile], title: fileName });
+                } catch (e) {
+                    if (e.name !== 'AbortError') downloadBlob(vcfBlob, fileName + '.vcf');
+                }
+            } else {
+                downloadBlob(vcfBlob, fileName + '.vcf');
+            }
+        });
+
+        // ── Share Link (T052) ──
+        viewShareLinkBtn.addEventListener('click', async function() {
+            var url = window.location.href;
+            if (navigator.canShare && navigator.canShare({ url: url })) {
+                try {
+                    await navigator.share({ url: url, title: 'Contact Card' });
+                } catch (e) {
+                    if (e.name !== 'AbortError') copyToClipboard(url);
+                }
+            } else {
+                copyToClipboard(url);
+            }
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                showToast('Link copied to clipboard');
+            }).catch(function() {
+                showToast('Could not copy link');
+            });
+        }
+
+        function showToast(msg) {
+            var existing = document.querySelector('.view-toast');
+            if (existing) existing.remove();
+            var toast = document.createElement('div');
+            toast.className = 'view-toast';
+            toast.textContent = msg;
+            toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--text,#111);color:var(--bg,#fff);padding:0.5rem 1.25rem;border-radius:0.5rem;font-size:0.85rem;z-index:999;opacity:0;transition:opacity 300ms';
+            document.body.appendChild(toast);
+            requestAnimationFrame(function() { toast.style.opacity = '1'; });
+            setTimeout(function() {
+                toast.style.opacity = '0';
+                setTimeout(function() { toast.remove(); }, 300);
+            }, 2500);
+        }
+
+        // ── Download TXT (full mode) ──
+        viewDownloadTxt.addEventListener('click', function() {
+            if (!contactData) return;
+            var d = contactData;
+            var exportData = {
+                firstName: d.firstName, lastName: d.lastName,
+                phone: d.phone, email: d.email,
+                organisation: d.organisation, jobTitle: d.jobTitle,
+                website: d.website, photoBase64: d.photoBase64,
+                socialMedia: d.socialMedia,
+                pixelsPerModule: d.pixelsPerModule, darkColor: d.darkColor,
+                lightColor: d.lightColor, errorCorrectionLevel: d.errorCorrectionLevel,
+                logoBase64: d.logoBase64, logoSizeRatio: d.logoSizeRatio,
+                retentionPeriod: d.retentionPeriod
+            };
+            var json = JSON.stringify(exportData, null, 2);
+            var blob = new Blob([json], { type: 'text/plain' });
+            var name = [d.firstName, d.lastName].filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'contact';
+            downloadBlob(blob, name + '.txt');
+        });
+
+        // ── Delete (full mode) ──
+        viewDeleteBtn.addEventListener('click', async function() {
+            if (!deleteToken) return;
+            if (!confirm('Are you sure you want to permanently delete your saved contact data?')) return;
+
+            viewDeleteBtn.disabled = true;
+            try {
+                var resp = await fetch('/api/blob/' + encodeURIComponent(slug), {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deleteToken: deleteToken })
+                });
+                var data = await resp.json();
+                if (data.success) {
+                    contactCard.hidden = true;
+                    viewQRSection.hidden = true;
+                    readonlyActions.hidden = true;
+                    fullActions.hidden = true;
+                    changeCodeSection.hidden = true;
+                    viewExpired.querySelector('h2').textContent = 'Contact Deleted';
+                    viewExpired.querySelector('p').textContent = 'Your contact data has been permanently deleted.';
+                    viewExpired.hidden = false;
+                    headerDesc.textContent = '';
+                } else {
+                    showToast(data.errorMessage || 'Delete failed — please try again.');
+                    viewDeleteBtn.disabled = false;
+                }
+            } catch (err) {
+                showToast('Network error — please try again.');
+                viewDeleteBtn.disabled = false;
+            }
+        });
+
+        function downloadBlob(blob, filename) {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // ── Change code (full mode) ──
+        changeCodeBtn.addEventListener('click', async function() {
+            var current = changeCurrentCode.value;
+            var newCode = changeNewCode.value;
+
+            if (!current || !newCode) {
+                changeCodeStatus.textContent = 'Please fill in both fields.';
+                changeCodeStatus.hidden = false;
+                return;
+            }
+            if (newCode.length < 4 || newCode.length > 6) {
+                changeCodeStatus.textContent = 'New code must be between 4 and 6 characters.';
+                changeCodeStatus.hidden = false;
+                return;
+            }
+
+            changeCodeBtn.disabled = true;
+            changeCodeStatus.hidden = true;
+
+            try {
+                var resp = await fetch('/api/blob/change-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: slug, currentCode: current, newCode: newCode })
+                });
+
+                var data = await resp.json();
+
+                if (data.success) {
+                    changeCodeStatus.textContent = 'Access code changed successfully!';
+                    changeCodeStatus.style.color = 'var(--success, #22c55e)';
+                    changeCodeStatus.hidden = false;
+                    changeCurrentCode.value = '';
+                    changeNewCode.value = '';
+                } else {
+                    changeCodeStatus.textContent = data.errorMessage || 'Failed to change code.';
+                    changeCodeStatus.style.color = 'var(--error)';
+                    changeCodeStatus.hidden = false;
+                }
+            } catch (err) {
+                changeCodeStatus.textContent = 'Network error — please try again.';
+                changeCodeStatus.style.color = 'var(--error)';
+                changeCodeStatus.hidden = false;
+            } finally {
+                changeCodeBtn.disabled = false;
+            }
+        });
+    })();
+    </script>
+</body>
+</html>
