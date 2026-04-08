@@ -228,6 +228,26 @@ body {
     gap: .75rem;
 }
 
+/* ── Contact Actions (Upload + Open Existing) ── */
+.contact-actions {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: .25rem;
+}
+
+/* ── Info Icon ── */
+.info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: help;
+    color: var(--text-subtle);
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
 .contact-block .field-row {
     display: flex;
     gap: .75rem;
@@ -622,7 +642,7 @@ body {
 /* Output canvas */
 .output-area {
     width: 100%;
-    max-width: 480px;
+    max-width: 520px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -719,7 +739,7 @@ body {
     padding: 2rem;
     position: relative;
     width: 100%;
-    max-width: 360px;
+    max-width: 400px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -773,15 +793,24 @@ body {
     flex-shrink: 0;
 }
 
-/* action strip */
+/* action strip — sits inside a QR card */
 .output-actions {
     display: flex;
-    gap: .625rem;
+    flex-wrap: wrap;
+    gap: .5rem;
     width: 100%;
-    max-width: 360px;
+    padding-top: .75rem;
+    border-top: 1px solid var(--border);
+    justify-content: center;
 }
 
-.output-actions .btn { flex: 1; }
+.output-actions .btn {
+    flex: 0 0 auto;
+    justify-content: center;
+    font-size: .75rem;
+    height: 34px;
+    padding: 0 .75rem;
+}
 
 /* share panel */
 .share-panel {
@@ -913,7 +942,10 @@ body {
         padding: 1rem 1rem 1.5rem;
     }
     .output-actions {
-        flex-wrap: wrap;
+        flex-direction: column;
+    }
+    .output-actions .btn {
+        width: 100%;
     }
     .share-panel {
         max-width: 100%;
@@ -927,5 +959,257 @@ body {
     .photo-upload {
         width: 72px;
         height: 72px;
+    }
+}
+
+/* ── Social Media Section ── */
+.social-media-block {
+    margin-top: 1rem;
+}
+
+.social-fields {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.social-field {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+
+.social-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .8125rem;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.social-checkbox {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.social-platform-name {
+    font-weight: 500;
+}
+
+.social-url {
+    font-size: .8125rem;
+}
+
+.social-url-error {
+    font-size: .75rem;
+}
+
+/* ── QR Grid (Contact mode) ── */
+.qr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    width: 100%;
+    max-width: 700px;
+}
+
+.qr-grid-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    animation: slideUp .3s ease;
+}
+
+.qr-grid-card__label {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.qr-grid-card__label svg {
+    flex-shrink: 0;
+}
+
+.qr-grid-card img {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    border-radius: var(--radius);
+}
+
+.qr-grid-card--vcard {
+    grid-column: 1 / -1;
+    max-width: 400px;
+    justify-self: center;
+}
+
+.qr-grid-card--vcard img {
+    max-width: 260px;
+}
+
+/* ── Save/Drop Prompt ── */
+.save-prompt {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    max-width: 400px;
+    width: 100%;
+    animation: slideUp .3s ease;
+}
+
+.save-prompt__header {
+    font-size: .9375rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .25rem;
+}
+
+.save-prompt__desc {
+    font-size: .8125rem;
+    color: var(--text-subtle);
+    margin-bottom: .75rem;
+    line-height: 1.4;
+}
+
+.save-prompt__actions {
+    display: flex;
+    gap: .5rem;
+    margin-top: .75rem;
+}
+
+.save-prompt__status {
+    font-size: .8125rem;
+    margin-top: .5rem;
+    padding: .5rem;
+    border-radius: var(--radius);
+}
+
+.save-prompt__status--success {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.save-prompt__status--error {
+    background: #fce4ec;
+    color: #c62828;
+}
+
+/* ── Danger outline button ── */
+.btn--danger-outline {
+    border: 1px solid var(--danger, #d32f2f);
+    color: var(--danger, #d32f2f);
+    background: transparent;
+    padding: .45rem .9rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    transition: background var(--transition), color var(--transition);
+}
+
+.btn--danger-outline:hover {
+    background: var(--danger, #d32f2f);
+    color: #fff;
+}
+
+/* ── Upload/Restore section ── */
+.upload-restore {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .75rem;
+}
+
+/* ── Open Existing Modal ── */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-dialog {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    max-width: 400px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    animation: slideUp .2s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-dialog__header {
+    font-size: .9375rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .25rem;
+}
+
+.oe-btn__spinner svg {
+    animation: spin .7s linear infinite;
+}
+
+/* ── Blob storage warning ── */
+.blob-warning {
+    background: #fff3e0;
+    color: #e65100;
+    font-size: .8125rem;
+    padding: .5rem .75rem;
+    border-radius: var(--radius);
+    text-align: center;
+    max-width: 400px;
+}
+
+/* ── Confirmation notice ── */
+.delete-notice {
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: .8125rem;
+    padding: .5rem .75rem;
+    border-radius: var(--radius);
+    text-align: center;
+    animation: slideUp .3s ease;
+}
+
+@media (max-width: 768px) {
+    .qr-grid {
+        grid-template-columns: 1fr;
+    }
+    .qr-grid-card--vcard {
+        max-width: 100%;
+    }
+    .save-prompt {
+        max-width: 100%;
+    }
+    .contact-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .contact-actions .info-icon {
+        align-self: flex-start;
     }
 }

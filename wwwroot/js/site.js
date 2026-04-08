@@ -38,6 +38,27 @@
     const sharePanelClose   = document.getElementById('share-panel-close');
     const shareChannels     = sharePanel.querySelectorAll('.share-channel');
 
+    // Single QR card and QR grid
+    const singleQRCard = document.getElementById('single-qr-card');
+    const qrGrid       = document.getElementById('qr-grid');
+
+    // Save/Drop/Delete/Share link refs
+    const savePrompt       = document.getElementById('save-prompt');
+    const accessCodeInput  = document.getElementById('access-code-input');
+    const accessCodeError  = document.getElementById('access-code-error');
+    const saveBlobBtn      = document.getElementById('save-blob-btn');
+    const saveStatus       = document.getElementById('save-status');
+    const downloadTxtBtn   = document.getElementById('download-txt-btn');
+    const shareVcfBtn      = document.getElementById('share-vcf-btn');
+    const shareLinkBtn     = document.getElementById('share-link-btn');
+    const deleteBlobBtn    = document.getElementById('delete-blob-btn');
+    const retentionSelect  = document.getElementById('retention-period');
+
+    // Upload contact refs
+    const uploadContactBtn   = document.getElementById('upload-contact-btn');
+    const uploadContactFile  = document.getElementById('upload-contact-file');
+    const uploadContactError = document.getElementById('upload-contact-error');
+
     let logoBase64 = null;
     let shareInProgress = false;
     let currentMode = 'url';
@@ -45,6 +66,13 @@
     // Photo upload state
     let photoBase64 = null;
     let includePhoto = true;
+
+    // Blob state
+    let currentFileName = null;
+    let currentDeleteToken = null;
+    let currentViewUrl = null;
+    let lastContactData = null;
+    let blobStorageAvailable = true;
 
     // Photo upload DOM refs
     const photoUploadZone  = document.getElementById('photo-upload-zone');
@@ -63,6 +91,10 @@
     const urlBlock    = document.querySelector('.url-block');
     const contactBlock = document.querySelector('.contact-block');
     const phLabel     = document.querySelector('.ph-label');
+
+    // Social media DOM refs
+    const socialCheckboxes = document.querySelectorAll('.social-checkbox');
+    const socialUrls       = document.querySelectorAll('.social-url');
 
     function switchMode(mode) {
         currentMode = mode;
@@ -96,7 +128,25 @@
     const emailError       = document.getElementById('email-error');
     const vcardLengthError = document.getElementById('vcard-length-error');
 
-    // Helpers 
+    // Social media: auto-check on URL entry, auto-uncheck on empty (T016)
+    socialUrls.forEach(input => {
+        input.addEventListener('input', () => {
+            const platform = input.dataset.platform;
+            const checkbox = document.querySelector(`.social-checkbox[data-platform="${platform}"]`);
+            if (checkbox) {
+                checkbox.checked = input.value.trim().length > 0;
+            }
+            // Auto-prepend https:// on blur
+        });
+        input.addEventListener('blur', () => {
+            const val = input.value.trim();
+            if (val && !val.match(/^https?:\/\//i)) {
+                input.value = 'https://' + val;
+            }
+        });
+    });
+
+    // Helpers
 
     function setLoading(on) {
         generateBtn.disabled = on;
@@ -110,7 +160,11 @@
         outputResult.hidden      = name !== 'result';
         outputError.hidden       = name !== 'error';
         shareBtn.hidden          = name !== 'result';
-        if (name !== 'result') hideSharePanel();
+        if (name !== 'result') {
+            hideSharePanel();
+            hideSavePrompt();
+            hideContactActions();
+        }
     }
 
     function showError(msg) {
@@ -137,7 +191,20 @@
         }
     }
 
-    // Color pickers 
+    function hideSavePrompt() {
+        if (savePrompt) savePrompt.hidden = true;
+        if (saveStatus) saveStatus.hidden = true;
+        if (accessCodeError) accessCodeError.hidden = true;
+    }
+
+    function hideContactActions() {
+        downloadTxtBtn.hidden = true;
+        shareVcfBtn.hidden = true;
+        shareLinkBtn.hidden = true;
+        deleteBlobBtn.hidden = true;
+    }
+
+    // Color pickers
 
     document.querySelectorAll('.color-picker-wrap').forEach((wrap) => {
         const inp    = wrap.querySelector('.color-input');
@@ -155,7 +222,7 @@
         inp.addEventListener('input', sync);
     });
 
-    // Sliders 
+    // Sliders
 
     sizeSlider.addEventListener('input', () => {
         sizeLabel.textContent = sizeSlider.value + ' px';
@@ -215,7 +282,7 @@
         if (file) handleLogoFile(file);
     });
 
-    // Photo upload (T009–T012, T013–T015)
+    // Photo upload
 
     function showPhotoError(msg) {
         photoError.textContent = msg;
@@ -250,7 +317,6 @@
         photoOptions.hidden     = false;
     }
 
-    // Click-to-browse
     photoUploadZone.addEventListener('click', (e) => {
         if (e.target === removePhotoBtn || removePhotoBtn.contains(e.target)) return;
         photoFileInput.click();
@@ -259,7 +325,6 @@
         if (photoFileInput.files[0]) handlePhotoFile(photoFileInput.files[0]);
     });
 
-    // Drag-and-drop
     photoUploadZone.addEventListener('dragover', e => {
         e.preventDefault();
         photoUploadZone.classList.add('drag-over');
@@ -272,7 +337,6 @@
         if (file) handlePhotoFile(file);
     });
 
-    // Remove photo
     removePhotoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -285,7 +349,6 @@
         clearPhotoError();
     });
 
-    // Include-photo checkbox
     includePhotoCheckbox.addEventListener('change', () => {
         includePhoto = includePhotoCheckbox.checked;
     });
@@ -296,7 +359,6 @@
         return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
     }
 
-    // Compress an image source to a JPEG Base64 string at given dimensions and quality
     function compressPhotoToBase64(imageSrc, size, quality) {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -306,7 +368,6 @@
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
 
-                // Cover/centre crop: draw the largest centred square from the source
                 const srcMin = Math.min(img.width, img.height);
                 const sx = (img.width - srcMin) / 2;
                 const sy = (img.height - srcMin) / 2;
@@ -316,7 +377,6 @@
                     if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
                     const reader = new FileReader();
                     reader.onload = () => {
-                        // Strip the data:image/jpeg;base64, prefix
                         const dataUrl = reader.result;
                         const raw = dataUrl.substring(dataUrl.indexOf(',') + 1);
                         resolve(raw);
@@ -369,7 +429,6 @@
         return true;
     }
 
-    // Progressive photo compression for QR capacity (T019)
     async function tryCompressPhotoForQR(imageSrc, eccLevel) {
         const sizes = [96, 64, 48];
         const qualities = [0.7, 0.5, 0.3, 0.1];
@@ -388,10 +447,133 @@
         return { success: false };
     }
 
+    // Social media URL validation (T018)
+    function validateSocialUrls() {
+        let valid = true;
+        socialUrls.forEach(input => {
+            const errorEl = input.parentElement.querySelector('.social-url-error');
+            if (errorEl) errorEl.hidden = true;
+            input.classList.remove('input--error');
+
+            const checkbox = document.querySelector(`.social-checkbox[data-platform="${input.dataset.platform}"]`);
+            if (checkbox && checkbox.checked && input.value.trim()) {
+                try {
+                    new URL(input.value.trim());
+                } catch {
+                    if (errorEl) {
+                        errorEl.textContent = 'Please enter a valid URL.';
+                        errorEl.hidden = false;
+                    }
+                    input.classList.add('input--error');
+                    valid = false;
+                }
+            }
+        });
+        return valid;
+    }
+
+    // Collect social media data from form
+    function collectSocialMedia() {
+        const entries = [];
+        socialUrls.forEach(input => {
+            const platform = input.dataset.platform;
+            const checkbox = document.querySelector(`.social-checkbox[data-platform="${platform}"]`);
+            entries.push({
+                platform: platform,
+                url: input.value.trim(),
+                enabled: checkbox ? checkbox.checked : false
+            });
+        });
+        return entries;
+    }
+
+    // Build ContactDataPayload from current form state
+    function buildContactDataPayload() {
+        return {
+            firstName:  contactFirstName.value.trim(),
+            lastName:   contactLastName.value.trim(),
+            phone:      contactPhone.value.trim() || null,
+            email:      contactEmail.value.trim() || null,
+            organisation: contactOrg.value.trim() || null,
+            jobTitle:   contactTitle.value.trim() || null,
+            website:    contactWebsite.value.trim() || null,
+            photoBase64: (photoBase64 && includePhoto) ? photoBase64 : null,
+            socialMedia: collectSocialMedia(),
+            pixelsPerModule:      parseInt(sizeSlider.value, 10),
+            darkColor:            document.getElementById('dark-color').value,
+            lightColor:           document.getElementById('light-color').value,
+            errorCorrectionLevel: eccSelect.value,
+            logoBase64:           logoBase64 ?? null,
+            logoSizeRatio:        logoBase64 ? parseInt(logoSizeSlider.value, 10) / 100 : 0.22,
+            retentionPeriod:      retentionSelect.value
+        };
+    }
+
+    // DOM ref for output-actions (buttons bar)
+    const outputActions = document.querySelector('.output-actions');
+
+    // Render QR grid for contact mode (T017, T019)
+    function renderQRGrid(data) {
+        // Detach outputActions before clearing so innerHTML='' doesn't destroy it
+        outputActions.remove();
+        qrGrid.innerHTML = '';
+
+        // vCard card first
+        if (data.vCardImageBase64) {
+            const card = document.createElement('div');
+            card.className = 'qr-grid-card qr-grid-card--vcard';
+            card.innerHTML = `
+                <div class="qr-grid-card__label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    vCard
+                </div>
+                <img src="data:image/png;base64,${data.vCardImageBase64}" alt="vCard QR code" />
+            `;
+            // Move action buttons inside the vCard card, under the image
+            card.appendChild(outputActions);
+            qrGrid.appendChild(card);
+        }
+
+        // Social media cards
+        if (data.socialMediaQRCodes) {
+            data.socialMediaQRCodes.forEach(sm => {
+                const card = document.createElement('div');
+                card.className = 'qr-grid-card';
+                card.innerHTML = `
+                    <div class="qr-grid-card__label">
+                        ${getPlatformIcon(sm.platform)}
+                        ${escapeHtml(sm.platform)}
+                    </div>
+                    <img src="data:image/png;base64,${sm.imageBase64}" alt="${escapeHtml(sm.platform)} QR code" />
+                `;
+                qrGrid.appendChild(card);
+            });
+        }
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // Platform icons (T049-T051)
+    function getPlatformIcon(platform) {
+        const icons = {
+            'LinkedIn': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>',
+            'Instagram': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>',
+            'Facebook': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>',
+            'X/Twitter': '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+            'YouTube': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19.13C5.12 19.56 12 19.56 12 19.56s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.43z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/></svg>',
+            'GitHub': '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>',
+            'TikTok': '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1 0-5.78 2.92 2.92 0 0 1 .88.13V9.01a6.35 6.35 0 0 0-1 0 6.34 6.34 0 0 0 .12 12.68A6.34 6.34 0 0 0 15.83 15.5V8.74a8.16 8.16 0 0 0 4.77 1.52V6.79a4.85 4.85 0 0 1-1.01-.1z"/></svg>'
+        };
+        return icons[platform] || '';
+    }
+
     // Contact form validation
 
     function validateContactForm() {
-        // Clear all field errors
         firstNameError.hidden = true;
         lastNameError.hidden = true;
         phoneError.hidden = true;
@@ -434,118 +616,627 @@
         return valid;
     }
 
-    // Generate 
+    // Auto-delete previous blob on re-generate (T025)
+    async function autoDeletePrevious() {
+        if (currentFileName && currentDeleteToken) {
+            try {
+                await fetch('/api/blob/' + encodeURIComponent(currentFileName), {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deleteToken: currentDeleteToken })
+                });
+            } catch { /* ignore — best effort */ }
+            currentFileName = null;
+            currentDeleteToken = null;
+            currentViewUrl = null;
+        }
+    }
+
+    // Generate
 
     async function generate() {
         contentError.hidden = true;
         clearPhotoError();
 
-        let content;
-
         if (currentMode === 'contact') {
             if (!validateContactForm()) return;
-            const eccValue = eccSelect.value;
+            if (!validateSocialUrls()) return;
 
-            if (photoBase64 && includePhoto) {
-                // Progressive photo compression (T019)
-                const result = await tryCompressPhotoForQR(photoBase64, eccValue);
-                if (!result.success) {
-                    showPhotoError('Photo is too large to include at the current error correction level. Try unchecking \'Include photo\' or lowering the error correction level.');
+            // Auto-delete previous blob (T025)
+            await autoDeletePrevious();
+
+            setLoading(true);
+
+            const payload = buildContactDataPayload();
+
+            // Also build the request body for generate-contact
+            const contactReq = {
+                firstName:            payload.firstName,
+                lastName:             payload.lastName,
+                phone:                payload.phone,
+                email:                payload.email,
+                organisation:         payload.organisation,
+                jobTitle:             payload.jobTitle,
+                website:              payload.website,
+                photoBase64:          payload.photoBase64,
+                socialMedia:          payload.socialMedia,
+                pixelsPerModule:      payload.pixelsPerModule,
+                darkColor:            payload.darkColor,
+                lightColor:           payload.lightColor,
+                errorCorrectionLevel: payload.errorCorrectionLevel,
+                logoBase64:           payload.logoBase64,
+                logoSizeRatio:        payload.logoSizeRatio
+            };
+
+            try {
+                const resp = await fetch('/api/qr/generate-contact', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(contactReq),
+                });
+
+                const data = await resp.json();
+
+                if (!resp.ok || !data.success) {
+                    showError(data.errorMessage || 'Something went wrong. Please try again.');
                     return;
                 }
-                content = result.vcard;
-            } else {
-                content = assembleVCard();
-                if (!validateVCardLength(content, eccValue)) return;
+
+                lastContactData = payload;
+
+                // Show QR grid
+                singleQRCard.hidden = true;
+                qrGrid.hidden = false;
+                renderQRGrid(data);
+
+                showSection('result');
+
+                // Show save prompt (T022, T023)
+                savePrompt.hidden = false;
+                accessCodeInput.value = '';
+                saveBlobBtn.disabled = true;
+                accessCodeError.hidden = true;
+                saveStatus.hidden = true;
+
+                // Show download TXT (available even before save — FR-014)
+                downloadTxtBtn.hidden = false;
+
+                // Show Share as VCF (always available per FR-033)
+                shareVcfBtn.hidden = false;
+
+                // Configure download for first QR image (vCard)
+                if (data.vCardImageBase64) {
+                    const src = 'data:image/png;base64,' + data.vCardImageBase64;
+                    qrImage.src = src;
+                    downloadBtn.onclick = () => {
+                        Object.assign(document.createElement('a'), {
+                            href: src, download: 'qr-studio-vcard.png',
+                        }).click();
+                    };
+                    copyBtn.onclick = async () => {
+                        try {
+                            const blob = await (await fetch(src)).blob();
+                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                            const saved = copyBtn.innerHTML;
+                            copyBtn.textContent = '✓ Copied';
+                            setTimeout(() => { copyBtn.innerHTML = saved; }, 2000);
+                        } catch {
+                            alert('Clipboard write is not supported in this browser.');
+                        }
+                    };
+                }
+
+            } catch {
+                showError('Network error — please check your connection and try again.');
+            } finally {
+                setLoading(false);
             }
+
         } else {
-            content = contentInput.value.trim();
+            // URL mode — original behavior
+            const content = contentInput.value.trim();
             if (!content) {
                 contentError.textContent = 'Please enter a URL or text.';
                 contentError.hidden = false;
                 contentInput.focus();
                 return;
             }
-        }
 
-        setLoading(true);
+            setLoading(true);
 
-        const darkInput  = document.getElementById('dark-color');
-        const lightInput = document.getElementById('light-color');
-        const eccValue   = eccSelect.value;
+            const darkInput  = document.getElementById('dark-color');
+            const lightInput = document.getElementById('light-color');
+            const eccValue   = eccSelect.value;
 
-        const payload = {
-            content,
-            pixelsPerModule:      parseInt(sizeSlider.value, 10),
-            darkColor:            darkInput.value,
-            lightColor:           lightInput.value,
-            errorCorrectionLevel: eccValue,
-            logoBase64:           logoBase64 ?? null,
-            logoSizeRatio:        logoBase64
-                ? parseInt(logoSizeSlider.value, 10) / 100
-                : 0.22,
-        };
-
-        try {
-            const resp = await fetch('/api/qr/generate', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(payload),
-            });
-
-            const data = await resp.json();
-
-            if (!resp.ok || !data.success) {
-                showError(data.errorMessage || 'Something went wrong. Please try again.');
-                return;
-            }
-
-            const src = 'data:image/png;base64,' + data.imageBase64;
-            qrImage.src = src;
-
-            // Update meta strip
-            if (currentMode === 'contact') {
-                const fn = contactFirstName.value.trim();
-                const ln = contactLastName.value.trim();
-                qrMetaUrl.textContent = [fn, ln].filter(Boolean).join(' ');
-            } else {
-                qrMetaUrl.textContent = truncateUrl(content);
-            }
-            const eccMap = { L: 'ECC L', M: 'ECC M', Q: 'ECC Q', H: 'ECC H' };
-            qrMetaEcc.textContent = eccMap[eccValue] ?? 'ECC H';
-
-            showSection('result');
-
-            // Download
-            downloadBtn.onclick = () => {
-                Object.assign(document.createElement('a'), {
-                    href: src, download: 'qr-studio.png',
-                }).click();
+            const payload = {
+                content,
+                pixelsPerModule:      parseInt(sizeSlider.value, 10),
+                darkColor:            darkInput.value,
+                lightColor:           lightInput.value,
+                errorCorrectionLevel: eccValue,
+                logoBase64:           logoBase64 ?? null,
+                logoSizeRatio:        logoBase64
+                    ? parseInt(logoSizeSlider.value, 10) / 100
+                    : 0.22,
             };
 
-            // Copy
-            copyBtn.onclick = async () => {
-                try {
-                    const blob = await (await fetch(src)).blob();
-                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                    const saved = copyBtn.innerHTML;
-                    copyBtn.textContent = '✓ Copied';
-                    setTimeout(() => { copyBtn.innerHTML = saved; }, 2000);
-                } catch {
-                    alert('Clipboard write is not supported in this browser. Please use Download instead.');
+            try {
+                const resp = await fetch('/api/qr/generate', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(payload),
+                });
+
+                const data = await resp.json();
+
+                if (!resp.ok || !data.success) {
+                    showError(data.errorMessage || 'Something went wrong. Please try again.');
+                    return;
                 }
-            };
 
-        } catch {
-            showError('Network error — please check your connection and try again.');
-        } finally {
-            setLoading(false);
+                const src = 'data:image/png;base64,' + data.imageBase64;
+                qrImage.src = src;
+
+                // Show single QR card, hide grid
+                singleQRCard.hidden = false;
+                qrGrid.hidden = true;
+
+                // Move action buttons inside single QR card
+                singleQRCard.appendChild(outputActions);
+
+                qrMetaUrl.textContent = truncateUrl(content);
+                const eccMap = { L: 'ECC L', M: 'ECC M', Q: 'ECC Q', H: 'ECC H' };
+                qrMetaEcc.textContent = eccMap[eccValue] ?? 'ECC H';
+
+                showSection('result');
+
+                downloadBtn.onclick = () => {
+                    Object.assign(document.createElement('a'), {
+                        href: src, download: 'qr-studio.png',
+                    }).click();
+                };
+
+                copyBtn.onclick = async () => {
+                    try {
+                        const blob = await (await fetch(src)).blob();
+                        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                        const saved = copyBtn.innerHTML;
+                        copyBtn.textContent = '✓ Copied';
+                        setTimeout(() => { copyBtn.innerHTML = saved; }, 2000);
+                    } catch {
+                        alert('Clipboard write is not supported in this browser. Please use Download instead.');
+                    }
+                };
+
+            } catch {
+                showError('Network error — please check your connection and try again.');
+            } finally {
+                setLoading(false);
+            }
         }
     }
 
     generateBtn.addEventListener('click', generate);
     generateContactBtn.addEventListener('click', generate);
     contentInput.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+
+    // Save blob (T023)
+    accessCodeInput.addEventListener('input', () => {
+        const len = accessCodeInput.value.length;
+        saveBlobBtn.disabled = len < 4 || len > 6;
+        if (len >= 4 && len <= 6) accessCodeError.hidden = true;
+    });
+
+    saveBlobBtn.addEventListener('click', async () => {
+        const code = accessCodeInput.value;
+        if (!code || code.length < 4) {
+            accessCodeError.textContent = 'Access code must be at least 4 characters.';
+            accessCodeError.hidden = false;
+            return;
+        }
+        if (code.length > 6) {
+            accessCodeError.textContent = 'Access code must not exceed 6 characters.';
+            accessCodeError.hidden = false;
+            return;
+        }
+        accessCodeError.hidden = true;
+
+        if (!lastContactData) return;
+
+        saveBlobBtn.disabled = true;
+        saveStatus.hidden = true;
+
+        try {
+            const resp = await fetch('/api/blob/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contactData: lastContactData,
+                    accessCode: code
+                })
+            });
+
+            const data = await resp.json();
+
+            if (data.success) {
+                currentFileName = data.fileName;
+                currentDeleteToken = data.deleteToken;
+                currentViewUrl = data.viewUrl;
+
+                saveStatus.textContent = 'Saved successfully!';
+                saveStatus.className = 'save-prompt__status save-prompt__status--success';
+                saveStatus.hidden = false;
+
+                // Hide save prompt after success
+                setTimeout(() => { savePrompt.hidden = true; }, 1500);
+
+                // Show share link and delete buttons
+                shareLinkBtn.hidden = false;
+                deleteBlobBtn.hidden = false;
+                blobStorageAvailable = true;
+            } else {
+                saveStatus.textContent = data.errorMessage || 'Failed to save.';
+                saveStatus.className = 'save-prompt__status save-prompt__status--error';
+                saveStatus.hidden = false;
+            }
+        } catch {
+            saveStatus.textContent = 'Network error — could not save.';
+            saveStatus.className = 'save-prompt__status save-prompt__status--error';
+            saveStatus.hidden = false;
+
+            // Graceful degradation (T026)
+            blobStorageAvailable = false;
+        } finally {
+            saveBlobBtn.disabled = false;
+        }
+    });
+
+    // Download TXT (T037, T038)
+    downloadTxtBtn.addEventListener('click', () => {
+        if (!lastContactData) return;
+        downloadContactTxt(lastContactData);
+    });
+
+    function downloadContactTxt(data) {
+        // Exclude security fields — just ContactDataPayload
+        const exportData = {
+            firstName:            data.firstName,
+            lastName:             data.lastName,
+            phone:                data.phone,
+            email:                data.email,
+            organisation:         data.organisation,
+            jobTitle:             data.jobTitle,
+            website:              data.website,
+            photoBase64:          data.photoBase64,
+            socialMedia:          data.socialMedia,
+            pixelsPerModule:      data.pixelsPerModule,
+            darkColor:            data.darkColor,
+            lightColor:           data.lightColor,
+            errorCorrectionLevel: data.errorCorrectionLevel,
+            logoBase64:           data.logoBase64,
+            logoSizeRatio:        data.logoSizeRatio,
+            retentionPeriod:      data.retentionPeriod
+        };
+
+        const json = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([json], { type: 'text/plain' });
+        const name = [data.firstName, data.lastName].filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'contact';
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name + '.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    // Share Link (T040, T041)
+    shareLinkBtn.addEventListener('click', async () => {
+        if (!currentViewUrl) return;
+        const fullUrl = window.location.origin + currentViewUrl;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: 'QR Studio Contact', url: fullUrl });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+
+        try {
+            await navigator.clipboard.writeText(fullUrl);
+            const saved = shareLinkBtn.textContent;
+            shareLinkBtn.textContent = '✓ Link copied!';
+            setTimeout(() => { shareLinkBtn.textContent = saved; }, 2000);
+        } catch {
+            alert('Could not copy link. View URL: ' + fullUrl);
+        }
+    });
+
+    // Share as VCF (T045-T046)
+    function generateVcfBlob() {
+        if (!lastContactData) return null;
+        const d = lastContactData;
+        const fn = d.firstName || '';
+        const ln = d.lastName || '';
+        const displayName = [fn, ln].filter(Boolean).join(' ');
+        const esc = (s) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+
+        const lines = ['BEGIN:VCARD', 'VERSION:3.0'];
+        lines.push('N:' + esc(ln) + ';' + esc(fn) + ';;;');
+        lines.push('FN:' + esc(displayName));
+        if (d.phone) lines.push('TEL;TYPE=CELL:' + esc(d.phone));
+        if (d.email) lines.push('EMAIL:' + esc(d.email));
+        if (d.organisation) lines.push('ORG:' + esc(d.organisation));
+        if (d.jobTitle) lines.push('TITLE:' + esc(d.jobTitle));
+        if (d.website) lines.push('URL:' + esc(d.website));
+        lines.push('END:VCARD');
+
+        const vcf = lines.join('\r\n');
+        return new Blob([vcf], { type: 'text/vcard' });
+    }
+
+    shareVcfBtn.addEventListener('click', async () => {
+        const vcfBlob = generateVcfBlob();
+        if (!vcfBlob) return;
+
+        const d = lastContactData;
+        const name = [d.firstName, d.lastName].filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'contact';
+        const fileName = name + '.vcf';
+
+        if (navigator.share) {
+            try {
+                const file = new File([vcfBlob], fileName, { type: 'text/vcard' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: 'Contact Card' });
+                    return;
+                }
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+
+        // Fallback: direct download
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(vcfBlob);
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+
+    // Delete blob (T045-T048)
+    deleteBlobBtn.addEventListener('click', async () => {
+        if (!currentFileName || !currentDeleteToken) return;
+
+        if (!confirm('Permanently delete your saved contact data? This cannot be undone.')) return;
+
+        deleteBlobBtn.disabled = true;
+
+        try {
+            const resp = await fetch('/api/blob/' + encodeURIComponent(currentFileName), {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deleteToken: currentDeleteToken })
+            });
+
+            const data = await resp.json();
+
+            if (data.success) {
+                currentFileName = null;
+                currentDeleteToken = null;
+                currentViewUrl = null;
+
+                deleteBlobBtn.hidden = true;
+                shareLinkBtn.hidden = true;
+
+                // Show delete confirmation
+                const notice = document.createElement('div');
+                notice.className = 'delete-notice';
+                notice.textContent = 'Contact data deleted successfully.';
+                outputResult.appendChild(notice);
+                setTimeout(() => notice.remove(), 4000);
+            } else {
+                alert(data.errorMessage || 'Could not delete. Please try again.');
+            }
+        } catch {
+            alert('Network error — could not delete. Please try again.');
+        } finally {
+            deleteBlobBtn.disabled = false;
+        }
+    });
+
+    // Upload contact TXT
+    uploadContactBtn.addEventListener('click', () => uploadContactFile.click());
+
+    uploadContactFile.addEventListener('change', () => {
+        const file = uploadContactFile.files[0];
+        if (!file) return;
+        uploadContactError.hidden = true;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const data = JSON.parse(reader.result);
+
+                // Validate expected fields
+                if (!data.firstName && !data.lastName) {
+                    uploadContactError.textContent = 'Invalid file: missing name fields.';
+                    uploadContactError.hidden = false;
+                    return;
+                }
+
+                populateContactForm(data);
+
+            } catch {
+                uploadContactError.textContent = 'Invalid file: could not parse JSON.';
+                uploadContactError.hidden = false;
+            }
+        };
+        reader.readAsText(file);
+        uploadContactFile.value = '';
+    });
+
+    // ── Reusable: Populate contact form from data object (T018) ──
+    function populateContactForm(data) {
+        contactFirstName.value = data.firstName || '';
+        contactLastName.value  = data.lastName || '';
+        contactPhone.value     = data.phone || '';
+        contactEmail.value     = data.email || '';
+        contactOrg.value       = data.organisation || '';
+        contactTitle.value     = data.jobTitle || '';
+        contactWebsite.value   = data.website || '';
+
+        // Populate social media
+        if (data.socialMedia && Array.isArray(data.socialMedia)) {
+            data.socialMedia.forEach(entry => {
+                const input = document.querySelector(`.social-url[data-platform="${entry.platform}"]`);
+                const checkbox = document.querySelector(`.social-checkbox[data-platform="${entry.platform}"]`);
+                if (input) input.value = entry.url || '';
+                if (checkbox) checkbox.checked = entry.enabled || false;
+            });
+        }
+
+        // Populate customization
+        if (data.pixelsPerModule) {
+            sizeSlider.value = data.pixelsPerModule;
+            sizeLabel.textContent = data.pixelsPerModule + ' px';
+        }
+        if (data.darkColor) {
+            document.getElementById('dark-color').value = data.darkColor;
+            document.getElementById('dark-swatch').style.background = data.darkColor;
+            document.getElementById('dark-hex').textContent = data.darkColor.toUpperCase();
+        }
+        if (data.lightColor) {
+            document.getElementById('light-color').value = data.lightColor;
+            document.getElementById('light-swatch').style.background = data.lightColor;
+            document.getElementById('light-hex').textContent = data.lightColor.toUpperCase();
+        }
+        if (data.errorCorrectionLevel) {
+            eccSelect.value = data.errorCorrectionLevel;
+        }
+        if (data.retentionPeriod) {
+            retentionSelect.value = data.retentionPeriod;
+        }
+
+        // Restore photo if present
+        if (data.photoBase64) {
+            photoBase64 = data.photoBase64;
+            photoPreview.src = data.photoBase64;
+            photoPreview.hidden = false;
+            photoPlaceholder.hidden = true;
+            removePhotoBtn.hidden = false;
+            photoOptions.hidden = false;
+        }
+
+        // Switch to contact mode
+        if (currentMode !== 'contact') {
+            modeContact.checked = true;
+            switchMode('contact');
+        }
+
+        showSection('placeholder');
+    }
+
+    // ── Open Existing Contact Modal (T016, T017) ──
+    const openExistingBtn       = document.getElementById('open-existing-btn');
+    const openExistingBackdrop  = document.getElementById('open-existing-backdrop');
+    const oeFirstName           = document.getElementById('oe-first-name');
+    const oeLastName            = document.getElementById('oe-last-name');
+    const oeAccessCode          = document.getElementById('oe-access-code');
+    const oeError               = document.getElementById('oe-error');
+    const oeSubmitBtn           = document.getElementById('oe-submit-btn');
+    const oeBtnLabel            = oeSubmitBtn.querySelector('.oe-btn__label');
+    const oeBtnSpinner          = oeSubmitBtn.querySelector('.oe-btn__spinner');
+
+    function openModal() {
+        oeFirstName.value = '';
+        oeLastName.value = '';
+        oeAccessCode.value = '';
+        oeError.hidden = true;
+        oeBtnLabel.hidden = false;
+        oeBtnSpinner.hidden = true;
+        oeSubmitBtn.disabled = false;
+        openExistingBackdrop.hidden = false;
+        oeFirstName.focus();
+    }
+
+    function closeModal() {
+        openExistingBackdrop.hidden = true;
+    }
+
+    openExistingBtn.addEventListener('click', openModal);
+
+    openExistingBackdrop.addEventListener('click', (e) => {
+        if (e.target === openExistingBackdrop) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !openExistingBackdrop.hidden) {
+            closeModal();
+        }
+    });
+
+    oeSubmitBtn.addEventListener('click', async () => {
+        oeError.hidden = true;
+        const firstName = oeFirstName.value.trim();
+        const lastName = oeLastName.value.trim();
+        const accessCode = oeAccessCode.value;
+
+        if (!firstName) {
+            oeError.textContent = 'First name is required.';
+            oeError.hidden = false;
+            oeFirstName.focus();
+            return;
+        }
+        if (!lastName) {
+            oeError.textContent = 'Last name is required.';
+            oeError.hidden = false;
+            oeLastName.focus();
+            return;
+        }
+        if (!accessCode || accessCode.length < 4 || accessCode.length > 6) {
+            oeError.textContent = 'Access code must be 4–6 characters.';
+            oeError.hidden = false;
+            oeAccessCode.focus();
+            return;
+        }
+
+        oeBtnLabel.hidden = true;
+        oeBtnSpinner.hidden = false;
+        oeSubmitBtn.disabled = true;
+
+        try {
+            const resp = await fetch('/api/blob/find', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, accessCode })
+            });
+
+            if (resp.status === 429) {
+                oeError.textContent = 'Too many attempts. Please wait and try again.';
+                oeError.hidden = false;
+                return;
+            }
+
+            const data = await resp.json();
+
+            if (data.success && data.contactData) {
+                currentFileName = data.fileName || null;
+                currentDeleteToken = data.deleteToken || null;
+                closeModal();
+                populateContactForm(data.contactData);
+            } else {
+                oeError.textContent = data.errorMessage || 'No matching contact found.';
+                oeError.hidden = false;
+            }
+        } catch {
+            oeError.textContent = 'Network error — please check your connection.';
+            oeError.hidden = false;
+        } finally {
+            oeBtnLabel.hidden = false;
+            oeBtnSpinner.hidden = true;
+            oeSubmitBtn.disabled = false;
+        }
+    });
 
     // Share logic
 
@@ -575,7 +1266,6 @@
             const pageUrl = window.location.href;
             const title = 'QR Code — daenet QR Studio';
 
-            // Try native Web Share API with file
             if (navigator.share) {
                 try {
                     const blob = dataUriToBlob(dataUri);
@@ -589,7 +1279,6 @@
                     if (err.name === 'AbortError') return;
                 }
 
-                // Fallback: share URL only
                 try {
                     await navigator.share({ title: title, text: pageUrl, url: pageUrl });
                     return;
@@ -598,14 +1287,12 @@
                 }
             }
 
-            // No native share — show fallback panel
             showSharePanel();
         } finally {
             shareInProgress = false;
         }
     }
 
-    // Channel handlers
     function getShareText() {
         return 'Check out this QR code: ' + window.location.href;
     }
@@ -664,7 +1351,6 @@
         }
     };
 
-    // Wire up channel clicks
     shareChannels.forEach(btn => {
         btn.addEventListener('click', () => {
             const channel = btn.dataset.channel;
@@ -673,7 +1359,6 @@
         });
     });
 
-    // Dismiss logic
     sharePanelClose.addEventListener('click', hideSharePanel);
 
     document.addEventListener('click', (e) => {
@@ -688,7 +1373,6 @@
         }
     });
 
-    // Wire up Share button
     shareBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         handleShare();

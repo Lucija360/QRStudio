@@ -44,4 +44,33 @@ public class QRController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// POST /api/qr/generate-contact
+    /// Generates vCard QR + per-platform social media QR codes.
+    /// </summary>
+    [HttpPost("generate-contact")]
+    [ProducesResponseType(typeof(ContactQRResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GenerateContact([FromBody] ContactQRRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage);
+            return BadRequest(new ContactQRResponse
+            {
+                Success = false,
+                ErrorMessage = string.Join(" ", errors)
+            });
+        }
+
+        var result = await _qrService.GenerateContactAsync(request);
+
+        if (!result.Success)
+            return UnprocessableEntity(result);
+
+        return Ok(result);
+    }
 }
