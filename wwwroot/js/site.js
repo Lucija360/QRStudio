@@ -47,7 +47,6 @@
     const accessCodeInput  = document.getElementById('access-code-input');
     const accessCodeError  = document.getElementById('access-code-error');
     const saveBlobBtn      = document.getElementById('save-blob-btn');
-    const dropBlobBtn      = document.getElementById('drop-blob-btn');
     const saveStatus       = document.getElementById('save-status');
     const downloadTxtBtn   = document.getElementById('download-txt-btn');
     const shareVcfBtn      = document.getElementById('share-vcf-btn');
@@ -55,11 +54,10 @@
     const deleteBlobBtn    = document.getElementById('delete-blob-btn');
     const retentionSelect  = document.getElementById('retention-period');
 
-    // Upload/Restore refs
-    const uploadRestoreSection = document.getElementById('upload-restore-section');
-    const uploadTxtBtn    = document.getElementById('upload-txt-btn');
-    const uploadTxtFile   = document.getElementById('upload-txt-file');
-    const uploadTxtError  = document.getElementById('upload-txt-error');
+    // Upload contact refs
+    const uploadContactBtn   = document.getElementById('upload-contact-btn');
+    const uploadContactFile  = document.getElementById('upload-contact-file');
+    const uploadContactError = document.getElementById('upload-contact-error');
 
     let logoBase64 = null;
     let shareInProgress = false;
@@ -204,7 +202,6 @@
         shareVcfBtn.hidden = true;
         shareLinkBtn.hidden = true;
         deleteBlobBtn.hidden = true;
-        if (uploadRestoreSection) uploadRestoreSection.hidden = true;
     }
 
     // Color pickers
@@ -512,8 +509,13 @@
         };
     }
 
+    // DOM ref for output-actions (buttons bar)
+    const outputActions = document.querySelector('.output-actions');
+
     // Render QR grid for contact mode (T017, T019)
     function renderQRGrid(data) {
+        // Detach outputActions before clearing so innerHTML='' doesn't destroy it
+        outputActions.remove();
         qrGrid.innerHTML = '';
 
         // vCard card first
@@ -527,6 +529,8 @@
                 </div>
                 <img src="data:image/png;base64,${data.vCardImageBase64}" alt="vCard QR code" />
             `;
+            // Move action buttons inside the vCard card, under the image
+            card.appendChild(outputActions);
             qrGrid.appendChild(card);
         }
 
@@ -700,9 +704,6 @@
                 // Show Share as VCF (always available per FR-033)
                 shareVcfBtn.hidden = false;
 
-                // Show upload section in contact mode
-                if (uploadRestoreSection) uploadRestoreSection.hidden = false;
-
                 // Configure download for first QR image (vCard)
                 if (data.vCardImageBase64) {
                     const src = 'data:image/png;base64,' + data.vCardImageBase64;
@@ -779,6 +780,9 @@
                 // Show single QR card, hide grid
                 singleQRCard.hidden = false;
                 qrGrid.hidden = true;
+
+                // Move action buttons inside single QR card
+                singleQRCard.appendChild(outputActions);
 
                 qrMetaUrl.textContent = truncateUrl(content);
                 const eccMap = { L: 'ECC L', M: 'ECC M', Q: 'ECC Q', H: 'ECC H' };
@@ -885,12 +889,6 @@
         } finally {
             saveBlobBtn.disabled = false;
         }
-    });
-
-    // Drop blob (T023)
-    dropBlobBtn.addEventListener('click', () => {
-        savePrompt.hidden = true;
-        // TXT download still available after drop (FR-014)
     });
 
     // Download TXT (T037, T038)
@@ -1046,13 +1044,13 @@
         }
     });
 
-    // Upload/Restore TXT (T042-T044)
-    uploadTxtBtn.addEventListener('click', () => uploadTxtFile.click());
+    // Upload contact TXT
+    uploadContactBtn.addEventListener('click', () => uploadContactFile.click());
 
-    uploadTxtFile.addEventListener('change', () => {
-        const file = uploadTxtFile.files[0];
+    uploadContactFile.addEventListener('change', () => {
+        const file = uploadContactFile.files[0];
         if (!file) return;
-        uploadTxtError.hidden = true;
+        uploadContactError.hidden = true;
 
         const reader = new FileReader();
         reader.onload = () => {
@@ -1061,77 +1059,183 @@
 
                 // Validate expected fields
                 if (!data.firstName && !data.lastName) {
-                    uploadTxtError.textContent = 'Invalid file: missing name fields.';
-                    uploadTxtError.hidden = false;
+                    uploadContactError.textContent = 'Invalid file: missing name fields.';
+                    uploadContactError.hidden = false;
                     return;
                 }
 
-                // Populate contact fields
-                contactFirstName.value = data.firstName || '';
-                contactLastName.value  = data.lastName || '';
-                contactPhone.value     = data.phone || '';
-                contactEmail.value     = data.email || '';
-                contactOrg.value       = data.organisation || '';
-                contactTitle.value     = data.jobTitle || '';
-                contactWebsite.value   = data.website || '';
-
-                // Populate social media
-                if (data.socialMedia && Array.isArray(data.socialMedia)) {
-                    data.socialMedia.forEach(entry => {
-                        const input = document.querySelector(`.social-url[data-platform="${entry.platform}"]`);
-                        const checkbox = document.querySelector(`.social-checkbox[data-platform="${entry.platform}"]`);
-                        if (input) input.value = entry.url || '';
-                        if (checkbox) checkbox.checked = entry.enabled || false;
-                    });
-                }
-
-                // Populate customization
-                if (data.pixelsPerModule) {
-                    sizeSlider.value = data.pixelsPerModule;
-                    sizeLabel.textContent = data.pixelsPerModule + ' px';
-                }
-                if (data.darkColor) {
-                    document.getElementById('dark-color').value = data.darkColor;
-                    document.getElementById('dark-swatch').style.background = data.darkColor;
-                    document.getElementById('dark-hex').textContent = data.darkColor.toUpperCase();
-                }
-                if (data.lightColor) {
-                    document.getElementById('light-color').value = data.lightColor;
-                    document.getElementById('light-swatch').style.background = data.lightColor;
-                    document.getElementById('light-hex').textContent = data.lightColor.toUpperCase();
-                }
-                if (data.errorCorrectionLevel) {
-                    eccSelect.value = data.errorCorrectionLevel;
-                }
-                if (data.retentionPeriod) {
-                    retentionSelect.value = data.retentionPeriod;
-                }
-
-                // Restore photo if present
-                if (data.photoBase64) {
-                    photoBase64 = data.photoBase64;
-                    photoPreview.src = data.photoBase64;
-                    photoPreview.hidden = false;
-                    photoPlaceholder.hidden = true;
-                    removePhotoBtn.hidden = false;
-                    photoOptions.hidden = false;
-                }
-
-                // Switch to contact mode
-                if (currentMode !== 'contact') {
-                    modeContact.checked = true;
-                    switchMode('contact');
-                }
-
-                showSection('placeholder');
+                populateContactForm(data);
 
             } catch {
-                uploadTxtError.textContent = 'Invalid file: could not parse JSON.';
-                uploadTxtError.hidden = false;
+                uploadContactError.textContent = 'Invalid file: could not parse JSON.';
+                uploadContactError.hidden = false;
             }
         };
         reader.readAsText(file);
-        uploadTxtFile.value = '';
+        uploadContactFile.value = '';
+    });
+
+    // ── Reusable: Populate contact form from data object (T018) ──
+    function populateContactForm(data) {
+        contactFirstName.value = data.firstName || '';
+        contactLastName.value  = data.lastName || '';
+        contactPhone.value     = data.phone || '';
+        contactEmail.value     = data.email || '';
+        contactOrg.value       = data.organisation || '';
+        contactTitle.value     = data.jobTitle || '';
+        contactWebsite.value   = data.website || '';
+
+        // Populate social media
+        if (data.socialMedia && Array.isArray(data.socialMedia)) {
+            data.socialMedia.forEach(entry => {
+                const input = document.querySelector(`.social-url[data-platform="${entry.platform}"]`);
+                const checkbox = document.querySelector(`.social-checkbox[data-platform="${entry.platform}"]`);
+                if (input) input.value = entry.url || '';
+                if (checkbox) checkbox.checked = entry.enabled || false;
+            });
+        }
+
+        // Populate customization
+        if (data.pixelsPerModule) {
+            sizeSlider.value = data.pixelsPerModule;
+            sizeLabel.textContent = data.pixelsPerModule + ' px';
+        }
+        if (data.darkColor) {
+            document.getElementById('dark-color').value = data.darkColor;
+            document.getElementById('dark-swatch').style.background = data.darkColor;
+            document.getElementById('dark-hex').textContent = data.darkColor.toUpperCase();
+        }
+        if (data.lightColor) {
+            document.getElementById('light-color').value = data.lightColor;
+            document.getElementById('light-swatch').style.background = data.lightColor;
+            document.getElementById('light-hex').textContent = data.lightColor.toUpperCase();
+        }
+        if (data.errorCorrectionLevel) {
+            eccSelect.value = data.errorCorrectionLevel;
+        }
+        if (data.retentionPeriod) {
+            retentionSelect.value = data.retentionPeriod;
+        }
+
+        // Restore photo if present
+        if (data.photoBase64) {
+            photoBase64 = data.photoBase64;
+            photoPreview.src = data.photoBase64;
+            photoPreview.hidden = false;
+            photoPlaceholder.hidden = true;
+            removePhotoBtn.hidden = false;
+            photoOptions.hidden = false;
+        }
+
+        // Switch to contact mode
+        if (currentMode !== 'contact') {
+            modeContact.checked = true;
+            switchMode('contact');
+        }
+
+        showSection('placeholder');
+    }
+
+    // ── Open Existing Contact Modal (T016, T017) ──
+    const openExistingBtn       = document.getElementById('open-existing-btn');
+    const openExistingBackdrop  = document.getElementById('open-existing-backdrop');
+    const oeFirstName           = document.getElementById('oe-first-name');
+    const oeLastName            = document.getElementById('oe-last-name');
+    const oeAccessCode          = document.getElementById('oe-access-code');
+    const oeError               = document.getElementById('oe-error');
+    const oeSubmitBtn           = document.getElementById('oe-submit-btn');
+    const oeBtnLabel            = oeSubmitBtn.querySelector('.oe-btn__label');
+    const oeBtnSpinner          = oeSubmitBtn.querySelector('.oe-btn__spinner');
+
+    function openModal() {
+        oeFirstName.value = '';
+        oeLastName.value = '';
+        oeAccessCode.value = '';
+        oeError.hidden = true;
+        oeBtnLabel.hidden = false;
+        oeBtnSpinner.hidden = true;
+        oeSubmitBtn.disabled = false;
+        openExistingBackdrop.hidden = false;
+        oeFirstName.focus();
+    }
+
+    function closeModal() {
+        openExistingBackdrop.hidden = true;
+    }
+
+    openExistingBtn.addEventListener('click', openModal);
+
+    openExistingBackdrop.addEventListener('click', (e) => {
+        if (e.target === openExistingBackdrop) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !openExistingBackdrop.hidden) {
+            closeModal();
+        }
+    });
+
+    oeSubmitBtn.addEventListener('click', async () => {
+        oeError.hidden = true;
+        const firstName = oeFirstName.value.trim();
+        const lastName = oeLastName.value.trim();
+        const accessCode = oeAccessCode.value;
+
+        if (!firstName) {
+            oeError.textContent = 'First name is required.';
+            oeError.hidden = false;
+            oeFirstName.focus();
+            return;
+        }
+        if (!lastName) {
+            oeError.textContent = 'Last name is required.';
+            oeError.hidden = false;
+            oeLastName.focus();
+            return;
+        }
+        if (!accessCode || accessCode.length < 4 || accessCode.length > 6) {
+            oeError.textContent = 'Access code must be 4–6 characters.';
+            oeError.hidden = false;
+            oeAccessCode.focus();
+            return;
+        }
+
+        oeBtnLabel.hidden = true;
+        oeBtnSpinner.hidden = false;
+        oeSubmitBtn.disabled = true;
+
+        try {
+            const resp = await fetch('/api/blob/find', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, accessCode })
+            });
+
+            if (resp.status === 429) {
+                oeError.textContent = 'Too many attempts. Please wait and try again.';
+                oeError.hidden = false;
+                return;
+            }
+
+            const data = await resp.json();
+
+            if (data.success && data.contactData) {
+                currentFileName = data.fileName || null;
+                currentDeleteToken = data.deleteToken || null;
+                closeModal();
+                populateContactForm(data.contactData);
+            } else {
+                oeError.textContent = data.errorMessage || 'No matching contact found.';
+                oeError.hidden = false;
+            }
+        } catch {
+            oeError.textContent = 'Network error — please check your connection.';
+            oeError.hidden = false;
+        } finally {
+            oeBtnLabel.hidden = false;
+            oeBtnSpinner.hidden = true;
+            oeSubmitBtn.disabled = false;
+        }
     });
 
     // Share logic

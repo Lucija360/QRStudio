@@ -228,6 +228,26 @@ body {
     gap: .75rem;
 }
 
+/* ── Contact Actions (Upload + Open Existing) ── */
+.contact-actions {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: .25rem;
+}
+
+/* ── Info Icon ── */
+.info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: help;
+    color: var(--text-subtle);
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
 .contact-block .field-row {
     display: flex;
     gap: .75rem;
@@ -622,7 +642,7 @@ body {
 /* Output canvas */
 .output-area {
     width: 100%;
-    max-width: 480px;
+    max-width: 520px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -719,7 +739,7 @@ body {
     padding: 2rem;
     position: relative;
     width: 100%;
-    max-width: 360px;
+    max-width: 400px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -773,15 +793,24 @@ body {
     flex-shrink: 0;
 }
 
-/* action strip */
+/* action strip — sits inside a QR card */
 .output-actions {
     display: flex;
-    gap: .625rem;
+    flex-wrap: wrap;
+    gap: .5rem;
     width: 100%;
-    max-width: 360px;
+    padding-top: .75rem;
+    border-top: 1px solid var(--border);
+    justify-content: center;
 }
 
-.output-actions .btn { flex: 1; }
+.output-actions .btn {
+    flex: 0 0 auto;
+    justify-content: center;
+    font-size: .75rem;
+    height: 34px;
+    padding: 0 .75rem;
+}
 
 /* share panel */
 .share-panel {
@@ -913,7 +942,10 @@ body {
         padding: 1rem 1rem 1.5rem;
     }
     .output-actions {
-        flex-wrap: wrap;
+        flex-direction: column;
+    }
+    .output-actions .btn {
+        width: 100%;
     }
     .share-panel {
         max-width: 100%;
@@ -1018,12 +1050,12 @@ body {
 
 .qr-grid-card--vcard {
     grid-column: 1 / -1;
-    max-width: 300px;
+    max-width: 400px;
     justify-self: center;
 }
 
 .qr-grid-card--vcard img {
-    max-width: 240px;
+    max-width: 260px;
 }
 
 /* ── Save/Drop Prompt ── */
@@ -1105,6 +1137,42 @@ body {
     margin-top: .75rem;
 }
 
+/* ── Open Existing Modal ── */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-dialog {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    max-width: 400px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    animation: slideUp .2s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-dialog__header {
+    font-size: .9375rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .25rem;
+}
+
+.oe-btn__spinner svg {
+    animation: spin .7s linear infinite;
+}
+
 /* ── Blob storage warning ── */
 .blob-warning {
     background: #fff3e0;
@@ -1136,5 +1204,12 @@ body {
     }
     .save-prompt {
         max-width: 100%;
+    }
+    .contact-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .contact-actions .info-icon {
+        align-self: flex-start;
     }
 }

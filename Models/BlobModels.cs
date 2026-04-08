@@ -93,3 +93,25 @@ public class ReadContactResponse
     public ContactDataPayload? ContactData { get; set; }
     public string? ErrorMessage { get; set; }
 }
+
+public class FindByNameRequest
+{
+    [Required(ErrorMessage = "First name is required.")]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Last name is required.")]
+    public string LastName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Access code is required.")]
+    [StringLength(6, MinimumLength = 4, ErrorMessage = "Access code must be between 4 and 6 characters.")]
+    public string AccessCode { get; set; } = string.Empty;
+}
+
+public class FindByNameResponse
+{
+    public bool Success { get; set; }
+    public ContactDataPayload? ContactData { get; set; }
+    public string? FileName { get; set; }
+    public string? DeleteToken { get; set; }
+    public string? ErrorMessage { get; set; }
+}

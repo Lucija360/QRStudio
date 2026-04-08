@@ -111,6 +111,43 @@ public sealed partial class BlobStorageService : IBlobStorageService
         await blob.SetTagsAsync(tags);
     }
 
+    public async Task<IReadOnlyList<(string FileName, BlobJsonDocument Document)>> FindByNamePrefixAsync(string firstName, string lastName)
+    {
+        var name = $"{firstName}-{lastName}-".ToLowerInvariant();
+        name = SanitizeRegex().Replace(name, "");
+        name = MultipleDashRegex().Replace(name, "-").TrimStart('-');
+
+        if (string.IsNullOrEmpty(name) || name == "-")
+            return [];
+
+        var results = new List<(string, BlobJsonDocument)>();
+
+        await foreach (var blobItem in _container.GetBlobsAsync(BlobTraits.None, BlobStates.None, name, default))
+        {
+            try
+            {
+                var doc = await ReadAsync(blobItem.Name);
+                if (doc == null) continue;
+
+                // Filter out expired entries
+                if (!string.IsNullOrEmpty(doc.ExpiresAt) &&
+                    DateTimeOffset.TryParse(doc.ExpiresAt, out var expiry) &&
+                    expiry < DateTimeOffset.UtcNow)
+                {
+                    continue;
+                }
+
+                results.Add((blobItem.Name, doc));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read blob {BlobName} during prefix search", blobItem.Name);
+            }
+        }
+
+        return results;
+    }
+
     private static string GenerateRandomSuffix(int length)
     {
         const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";

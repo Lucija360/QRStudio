@@ -12,4 +12,5 @@ public interface IBlobStorageService
     Task<bool> ExistsAsync(string fileName);
     Task<string> GenerateFileName(string firstName, string lastName);
     Task SetTagsAsync(string fileName, IDictionary<string, string> tags);
+    Task<IReadOnlyList<(string FileName, BlobJsonDocument Document)>> FindByNamePrefixAsync(string firstName, string lastName);
 }

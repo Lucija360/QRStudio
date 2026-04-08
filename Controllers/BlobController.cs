@@ -315,6 +315,83 @@ public class BlobController : ControllerBase
         return Ok(new { success = deleted });
     }
 
+    /// <summary>
+    /// POST /api/blob/find
+    /// Finds a contact by name prefix and verifies the access code.
+    /// </summary>
+    [HttpPost("find")]
+    [ProducesResponseType(typeof(FindByNameResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Find([FromBody] FindByNameRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage);
+            return BadRequest(new FindByNameResponse
+            {
+                Success = false,
+                ErrorMessage = string.Join(" ", errors)
+            });
+        }
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var rateLimitKey = $"{ip}:find:{request.FirstName}-{request.LastName}";
+
+        if (_rateLimitService.IsRateLimited(rateLimitKey))
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests, new FindByNameResponse
+            {
+                Success = false,
+                ErrorMessage = "Too many attempts. Please wait and try again."
+            });
+        }
+
+        var candidates = await _blobService.FindByNamePrefixAsync(request.FirstName, request.LastName);
+
+        foreach (var (fileName, document) in candidates)
+        {
+            if (_accessCodeService.VerifyCode(request.AccessCode, document.AccessCodeHash, document.AccessCodeSalt))
+            {
+                return Ok(new FindByNameResponse
+                {
+                    Success = true,
+                    FileName = fileName,
+                    DeleteToken = document.DeleteToken,
+                    ContactData = new ContactDataPayload
+                    {
+                        FirstName = document.FirstName,
+                        LastName = document.LastName,
+                        Phone = document.Phone,
+                        Email = document.Email,
+                        Organisation = document.Organisation,
+                        JobTitle = document.JobTitle,
+                        Website = document.Website,
+                        PhotoBase64 = document.PhotoBase64,
+                        SocialMedia = document.SocialMedia,
+                        PixelsPerModule = document.PixelsPerModule,
+                        DarkColor = document.DarkColor,
+                        LightColor = document.LightColor,
+                        ErrorCorrectionLevel = document.ErrorCorrectionLevel,
+                        LogoBase64 = document.LogoBase64,
+                        LogoSizeRatio = document.LogoSizeRatio,
+                        RetentionPeriod = document.RetentionPeriod
+                    }
+                });
+            }
+        }
+
+        _rateLimitService.RecordFailedAttempt(rateLimitKey);
+
+        return Ok(new FindByNameResponse
+        {
+            Success = false,
+            ErrorMessage = "No matching contact found or incorrect access code."
+        });
+    }
+
     private static DateTimeOffset? CalculateExpiry(string retentionPeriod)
     {
         return retentionPeriod switch

@@ -80,6 +80,29 @@
 
             <!-- Contact block -->
             <div class="contact-block" hidden>
+                <!-- Contact actions: Upload + Open Existing -->
+                <div class="contact-actions">
+                    <button class="btn btn--outline" id="upload-contact-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Upload
+                    </button>
+                    <button class="btn btn--outline" id="open-existing-btn">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                        </svg>
+                        Open Existing
+                    </button>
+                    <span class="info-icon" title="You can open existing contact card — provide first name, last name and access code">ⓘ</span>
+                    <input type="file" id="upload-contact-file" accept=".txt,.json" class="upload-file-input" style="position:absolute;opacity:0;pointer-events:none;" />
+                    <p class="field-error" id="upload-contact-error" hidden></p>
+                </div>
+
                 <p class="section-label">Content</p>
 
                 <!-- Photo upload -->
@@ -352,7 +375,7 @@
                         </svg>
                         Download PNG
                     </button>
-                    <button class="btn btn--ghost" id="copy-btn">
+                    <button class="btn btn--outline" id="copy-btn">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -408,7 +431,7 @@
                 <!-- Save/Drop prompt (Contact mode) -->
                 <div class="save-prompt" id="save-prompt" hidden>
                     <div class="save-prompt__header">Save your contact data?</div>
-                    <p class="save-prompt__desc">Enter an access code to save and share your contact data. Or drop to skip saving.</p>
+                    <p class="save-prompt__desc">Enter an access code to save and share your contact data.</p>
                     <div class="field-group">
                         <label class="field-label" for="access-code-input">Access code</label>
                         <input id="access-code-input" type="password" class="input" placeholder="Enter access code" autocomplete="off" minlength="4" maxlength="6" />
@@ -416,24 +439,8 @@
                     </div>
                     <div class="save-prompt__actions">
                         <button class="btn btn--primary" id="save-blob-btn">Save</button>
-                        <button class="btn btn--ghost" id="drop-blob-btn">Drop</button>
                     </div>
                     <p class="save-prompt__status" id="save-status" hidden></p>
-                </div>
-
-                <!-- Upload/Restore (US3c) -->
-                <div class="upload-restore" id="upload-restore-section" hidden>
-                    <button class="btn btn--outline" id="upload-txt-btn">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        Upload TXT
-                    </button>
-                    <input type="file" id="upload-txt-file" accept=".txt,.json" class="upload-file-input" />
-                    <p class="field-error" id="upload-txt-error" hidden></p>
                 </div>
 
                 <!-- Share fallback panel -->
@@ -496,5 +503,34 @@
 
         </div>
     </section>
+
+    <!-- ── Open Existing Contact Modal ── -->
+    <div class="modal-backdrop" id="open-existing-backdrop" hidden>
+        <div class="modal-dialog open-existing-modal">
+            <div class="modal-dialog__header">Open Existing Contact</div>
+            <div class="field-group">
+                <label class="field-label" for="oe-first-name">First Name</label>
+                <input id="oe-first-name" type="text" class="input" placeholder="Jane" autocomplete="off" />
+            </div>
+            <div class="field-group">
+                <label class="field-label" for="oe-last-name">Last Name</label>
+                <input id="oe-last-name" type="text" class="input" placeholder="Doe" autocomplete="off" />
+            </div>
+            <div class="field-group">
+                <label class="field-label" for="oe-access-code">Access Code</label>
+                <input id="oe-access-code" type="password" class="input" placeholder="Enter access code" autocomplete="off" minlength="4" maxlength="6" />
+            </div>
+            <p class="field-error" id="oe-error" hidden></p>
+            <button class="btn btn--primary btn--full-width" id="oe-submit-btn">
+                <span class="oe-btn__label">Open</span>
+                <span class="oe-btn__spinner" hidden>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"
+                            stroke-dasharray="28" stroke-dashoffset="10" stroke-linecap="round"/>
+                    </svg>
+                </span>
+            </button>
+        </div>
+    </div>
 
 </main>
