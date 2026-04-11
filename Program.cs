@@ -1,10 +1,23 @@
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.RateLimiting;
 using QRStudio.Services;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("qr-api", o =>
+    {
+        o.PermitLimit = 20;
+        o.Window = TimeSpan.FromMinutes(1);
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        o.QueueLimit = 0;
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 builder.Services.AddSingleton<IAccessCodeService, AccessCodeService>();
 builder.Services.AddSingleton<IRateLimitService, RateLimitService>();
 
@@ -34,6 +47,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllerRoute(

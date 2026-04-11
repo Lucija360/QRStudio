@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using QRStudio.Models;
 using QRStudio.Services;
 
@@ -21,6 +22,7 @@ public class QRController : ControllerBase
     /// Returns PNG as base64 JSON response.
     /// </summary>
     [HttpPost("generate")]
+    [EnableRateLimiting("qr-api")]
     [ProducesResponseType(typeof(QRGenerateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Generate([FromBody] QRGenerateRequest request)
@@ -50,6 +52,7 @@ public class QRController : ControllerBase
     /// Generates vCard QR + per-platform social media QR codes.
     /// </summary>
     [HttpPost("generate-contact")]
+    [EnableRateLimiting("qr-api")]
     [ProducesResponseType(typeof(ContactQRResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GenerateContact([FromBody] ContactQRRequest request)

@@ -88,10 +88,19 @@ public class ContactDataPayload
     public string? PhotoBase64 { get; set; }
     public SocialMediaEntry[] SocialMedia { get; set; } = [];
     public int PixelsPerModule { get; set; } = 10;
+
+    [RegularExpression(@"^#[0-9A-Fa-f]{6}$", ErrorMessage = "DarkColor must be a valid hex color (e.g. #1a2b3c).")]
     public string DarkColor { get; set; } = "#0d0d0d";
+
+    [RegularExpression(@"^#[0-9A-Fa-f]{6}$", ErrorMessage = "LightColor must be a valid hex color (e.g. #ffffff).")]
     public string LightColor { get; set; } = "#ffffff";
+
+    [RegularExpression(@"^[LMQHlmqh]$", ErrorMessage = "ErrorCorrectionLevel must be L, M, Q, or H.")]
     public string ErrorCorrectionLevel { get; set; } = "H";
+
     public string? LogoBase64 { get; set; }
+
     public double LogoSizeRatio { get; set; } = 0.22;
+
     public string RetentionPeriod { get; set; } = "7d";
 }

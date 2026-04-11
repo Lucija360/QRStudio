@@ -44,19 +44,19 @@ public sealed class QRCodeService : IQRCodeService
             // Composite logo if provided
             if (!string.IsNullOrWhiteSpace(request.LogoBase64))
             {
-                await CompositeLogoAsync(qrImage, request.LogoBase64, request.LogoSizeRatio);
+                CompositeLogo(qrImage, request.LogoBase64, request.LogoSizeRatio);
             }
 
             // Encode to PNG
             using var ms = new MemoryStream();
             await qrImage.SaveAsync(ms, new PngEncoder());
-            var base64 = Convert.ToBase64String(ms.ToArray());
+            var base64 = Convert.ToBase64String(ms.GetBuffer(), 0, (int)ms.Length);
 
             return new QRGenerateResponse { Success = true, ImageBase64 = base64 };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "QR generation failed for content: {Content}", request.Content);
+            _logger.LogError(ex, "QR generation failed. Content length: {Len}", request.Content.Length);
             return new QRGenerateResponse
             {
                 Success = false,
@@ -65,7 +65,7 @@ public sealed class QRCodeService : IQRCodeService
         }
     }
 
-    #region Private Helepers
+    #region Private Helpers
 
     private async Task<string?> GenerateQRBase64(string content, ContactQRRequest request)
     {
@@ -186,7 +186,7 @@ public sealed class QRCodeService : IQRCodeService
             .Replace("\n", "\\n");
     }
 
-    private static async Task CompositeLogoAsync(
+    private static void CompositeLogo(
         Image<Rgba32> qrImage,
         string logoBase64,
         double logoSizeRatio)
@@ -197,6 +197,9 @@ public sealed class QRCodeService : IQRCodeService
             : logoBase64;
 
         byte[] logoBytes = Convert.FromBase64String(base64Data);
+
+        if (logoBytes.Length > 2 * 1024 * 1024)
+            throw new InvalidOperationException("Logo image exceeds the 2 MB limit.");
 
         using var logoImage = Image.Load<Rgba32>(logoBytes);
 
@@ -230,8 +233,6 @@ public sealed class QRCodeService : IQRCodeService
             int logoY = (qrImage.Height - logoH) / 2;
             ctx.DrawImage(logoImage, new Point(logoX, logoY), opacity: 1f);
         });
-
-        await Task.CompletedTask;
     }
 
     private static QRCodeGenerator.ECCLevel ParseEcLevel(string level) =>
@@ -243,7 +244,7 @@ public sealed class QRCodeService : IQRCodeService
             _   => QRCodeGenerator.ECCLevel.H
         };
 
-    /// <summary>Converts a hex color string (#RRGGBB or #RRGGBBAA) to a 4-byte RGBA array.</summary>
+    /// <summary>Converts a hex color string (#RRGGBB) to a 4-byte RGBA array with full opacity.</summary>
     private static byte[] HexToRgba(string hex)
     {
         hex = hex.TrimStart('#');
